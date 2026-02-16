@@ -87,11 +87,8 @@ def test_skeleton_integrity(csv_file):
     
     conv.add_polygon(rings)
 
-    try:
-        sk = compute_skeleton(conv, internal_only=True, shrink=False)
-        segments = sk.segments()
-    except Exception as e:
-        raise RuntimeError(f"Failed to compute skeleton for {csv_file.name}") from e
+    sk = compute_skeleton(conv, internal_only=True, shrink=False)
+    segments = sk.segments()
 
     skel_endpoints = set()
     skeleton_point_segments = []
