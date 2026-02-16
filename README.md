@@ -19,3 +19,12 @@ conv.add_polygon(
 segments = compute_segments(conv)
 print(segments)
 ```
+
+### Sync uv (dev)
+`uv sync --all-extras --group dev --group test`
+
+### Run Tests
+`uv run pytest tests/ -v --color=yes`
+
+### Run Benchmark
+`uv run python benchmarks/benchmark_micycle.py`

@@ -43,6 +43,7 @@ test = [
 dev = [
   "ipykernel >=6.29",
   "grassfire2[test]",
+  "pyinstrument>=5.1.2",
 ]
 
 [tool.hatch.metadata]
