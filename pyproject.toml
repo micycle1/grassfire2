@@ -1,0 +1,57 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "grassfire2"
+
+version = "0.1.dev0"
+description = "Straight skeleton by means of kinetic triangulation (core-only refactor)"
+readme = "README.md"
+license = "MIT"
+authors = [
+  { name = "Martijn Meijers", email = "b.m.meijers@tudelft.nl" }
+]
+requires-python = ">=3.12"
+dependencies = [
+  "predicates @ git+https://github.com/micycle1/predicates/",
+  "tri @ git+https://github.com/micycle1/tri",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Information Technology",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: Scientific/Engineering :: GIS",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+]
+
+[project.urls]
+Homepage = "https://github.com/micycle1/grassfire"
+
+[project.optional-dependencies]
+test = [
+  "pytest>=8.3.5",
+  "requests>=2.32.4",
+  "matplotlib>=3.7.5",
+]
+dev = [
+  "ipykernel>=6.29.5",
+  "grassfire2[test]",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/grassfire2"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+log_cli = true
+log_cli_level = "INFO"
