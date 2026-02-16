@@ -70,6 +70,37 @@ def segments_intersect(p1, p2, p3, p4):
 csv_dir = Path(__file__).parent / "csv"
 csv_files = sorted(list(csv_dir.glob("*.csv")))
 
+EXPECTED_SEGMENTS = {
+    "eberly-10.csv": 36,
+    "eberly-14.csv": 39,
+    "elgindy-1.csv": 31,
+    "gray-embroidery.csv": 61,
+    "held-1.csv": 122,
+    "held-12.csv": 63,
+    "held-3.csv": 118,
+    "held-7a.csv": 125,
+    "held-7b.csv": 123,
+    "held-7c.csv": 125,
+    "held-7d.csv": 119,
+    "mapbox-building.csv": 26,
+    "mapbox-dude.csv": 211,
+    "matisse-alga.csv": 494,
+    "matisse-blue.csv": 394,
+    "matisse-icarus.csv": 178,
+    "matisse-nuit.csv": 245,
+    "mei-2.csv": 49,
+    "mei-3.csv": 81,
+    "mei-4.csv": 231,
+    "mei-5.csv": 555,
+    "mei-6.csv": 732,
+    "meisters-3.csv": 57,
+    "misc-discobolus.csv": 291,
+    "misc-fu.csv": 352,
+    "seidel-3.csv": 37,
+    "skimage-horse.csv": 235,
+    "toussaint-1a.csv": 247,
+}
+
 @mark.parametrize("csv_file", csv_files, ids=[f.name for f in csv_files])
 def test_skeleton_integrity(csv_file):
     importorskip("tri")
@@ -89,6 +120,10 @@ def test_skeleton_integrity(csv_file):
 
     sk = compute_skeleton(conv, internal_only=True, shrink=False)
     segments = sk.segments()
+
+    if csv_file.name in EXPECTED_SEGMENTS:
+        expected = EXPECTED_SEGMENTS[csv_file.name]
+        assert len(segments) == expected, f"Expected {expected} segments for {csv_file.name}, but got {len(segments)}"
 
     skel_endpoints = set()
     skeleton_point_segments = []
