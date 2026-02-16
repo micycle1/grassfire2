@@ -19,29 +19,29 @@ dependencies = [
 ]
 classifiers = [
   "Development Status :: 3 - Alpha",
-  "Intended Audience :: Developers",
-  "Intended Audience :: Information Technology",
   "License :: OSI Approved :: MIT License",
-  "Operating System :: OS Independent",
-  "Programming Language :: Python",
   "Programming Language :: Python :: 3",
-  "Topic :: Software Development :: Libraries",
-  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Programming Language :: Python :: 3.12",
   "Topic :: Scientific/Engineering :: GIS",
-  "Topic :: Scientific/Engineering :: Information Analysis",
+  "Topic :: Scientific/Engineering :: Mathematics",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Operating System :: OS Independent",
 ]
 
 [project.urls]
-Homepage = "https://github.com/micycle1/grassfire"
+Homepage    = "https://github.com/micycle1/grassfire"
+Repository  = "https://github.com/micycle1/grassfire.git"
 
-[project.optional-dependencies]
+[dependency-groups]
 test = [
-  "pytest>=8.3.5",
-  "requests>=2.32.4",
-  "matplotlib>=3.7.5",
+  "pytest >=8.3",
+  "requests >=2.32",
+  "matplotlib >=3.7",
 ]
+
 dev = [
-  "ipykernel>=6.29.5",
+  "ipykernel >=6.29",
   "grassfire2[test]",
 ]
 
