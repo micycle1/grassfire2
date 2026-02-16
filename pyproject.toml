@@ -6,11 +6,11 @@ build-backend = "hatchling.build"
 name = "grassfire2"
 
 version = "0.1.dev0"
-description = "Straight skeleton by means of kinetic triangulation (core-only refactor)"
+description = "Straight skeleton by means of kinetic triangulation"
 readme = "README.md"
 license = "MIT"
 authors = [
-  { name = "Martijn Meijers", email = "b.m.meijers@tudelft.nl" }
+  { name = "Michael Carleton", email = "micycle1@hotmail.co.uk" }
 ]
 requires-python = ">=3.12"
 dependencies = [
