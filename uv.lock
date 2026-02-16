@@ -330,12 +330,10 @@ dependencies = [
     { name = "tri" },
 ]
 
-[package.optional-dependencies]
+[package.dev-dependencies]
 dev = [
+    { name = "grassfire2" },
     { name = "ipykernel" },
-    { name = "matplotlib" },
-    { name = "pytest" },
-    { name = "requests" },
 ]
 test = [
     { name = "matplotlib" },
@@ -345,15 +343,20 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "grassfire2", extras = ["test"], marker = "extra == 'dev'" },
-    { name = "ipykernel", marker = "extra == 'dev'", specifier = ">=6.29.5" },
-    { name = "matplotlib", marker = "extra == 'test'", specifier = ">=3.7.5" },
     { name = "predicates", git = "https://github.com/micycle1/predicates/" },
-    { name = "pytest", marker = "extra == 'test'", specifier = ">=8.3.5" },
-    { name = "requests", marker = "extra == 'test'", specifier = ">=2.32.4" },
     { name = "tri", git = "https://github.com/micycle1/tri" },
 ]
-provides-extras = ["test", "dev"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "grassfire2", extras = ["test"] },
+    { name = "ipykernel", specifier = ">=6.29" },
+]
+test = [
+    { name = "matplotlib", specifier = ">=3.7" },
+    { name = "pytest", specifier = ">=8.3" },
+    { name = "requests", specifier = ">=2.32" },
+]
 
 [[package]]
 name = "idna"
