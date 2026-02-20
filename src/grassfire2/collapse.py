@@ -45,68 +45,41 @@ def find_gte(a: list[Optional[float]], x: float) -> Optional[float]:
     return None
 
 
-def vertex_crash_time(org: KineticVertex, dst: KineticVertex, apx: KineticVertex) -> Optional[float]:
-    Mv = sub(apx.origin, org.origin)  # type: ignore[arg-type]
+def vertex_crash_time(
+    org: KineticVertex,
+    dst: KineticVertex,
+    apx: KineticVertex,
+    now: float,
+) -> Optional[float]:
+    """
+    Predict absolute time T when apex hits the moving wavefront edge (org-dst),
+    computed robustly from positions/velocities at `now`.
+
+    Returns absolute time or None if undefined / not in the future.
+    """
     assert org.ur is not None
     assert org.ur == dst.ul
-    n = tuple(org.ur.w)  # type: ignore[attr-defined]
-    s = apx.velocity  # type: ignore[assignment]
-    dist_v_e = dot(Mv, n)
-    s_proj = dot(s, n)  # type: ignore[arg-type]
+    n = tuple(org.ur.w)  # type: ignore[attr-defined]  # unit normal
+
+    Por = org.position_at(now)
+    Pap = apx.position_at(now)
+    s = apx.velocity_at(now)
+
+    # Signed distance along edge normal at current time
+    dist_v_e = dot(sub(Pap, Por), n)
+    s_proj = dot(s, n)
     denom = 1.0 - s_proj
-    if not near_zero(denom):
-        return dist_v_e / denom
-    return None
+    if near_zero(denom):
+        return None
 
+    tau = dist_v_e / denom
+    if tau < -STOP_EPS:
+        return None
+    return now + max(0.0, float(tau))
 
-def area_collapse_time_coeff(kva: KineticVertex, kvb: KineticVertex, kvc: KineticVertex) -> tuple[float, float, float]:
-    pa, shifta = kva.origin, kva.velocity
-    pb, shiftb = kvb.origin, kvb.velocity
-    pc, shiftc = kvc.origin, kvc.velocity
-    xaorig, yaorig = pa[0], pa[1]
-    xborig, yborig = pb[0], pb[1]
-    xcorig, ycorig = pc[0], pc[1]
-    dxa, dya = shifta[0], shifta[1]
-    dxb, dyb = shiftb[0], shiftb[1]
-    dxc, dyc = shiftc[0], shiftc[1]
-
-    A = dxa * dyb - dxb * dya + dxb * dyc - dxc * dyb + dxc * dya - dxa * dyc
-    B = (
-        xaorig * dyb
-        - xborig * dya
-        + xborig * dyc
-        - xcorig * dyb
-        + xcorig * dya
-        - xaorig * dyc
-        + dxa * yborig
-        - dxb * yaorig
-        + dxb * ycorig
-        - dxc * yborig
-        + dxc * yaorig
-        - dxa * ycorig
-    )
-    C = (
-        xaorig * yborig
-        - xborig * yaorig
-        + xborig * ycorig
-        - xcorig * yborig
-        + xcorig * yaorig
-        - xaorig * ycorig
-    )
-    return (A, B, C)
 
 def cross2(ax: float, ay: float, bx: float, by: float) -> float:
     return ax * by - ay * bx
-
-
-def effective_velocity_at(v: VertexRef, now: float) -> Vec2:
-    """
-    Freeze stopped kinetic vertices; infinite vertices are always stationary.
-    """
-    if isinstance(v, InfiniteVertex):
-        return (0.0, 0.0)
-
-    return v.velocity_at(now)
 
 
 def area_collapse_time_coeff_tau(o: VertexRef, d: VertexRef, a: VertexRef, now: float) -> tuple[float, float, float]:
@@ -114,9 +87,9 @@ def area_collapse_time_coeff_tau(o: VertexRef, d: VertexRef, a: VertexRef, now: 
     Bx, By = d.position_at(now)
     Cx, Cy = a.position_at(now)
 
-    Vax, Vay = effective_velocity_at(o, now)
-    Vbx, Vby = effective_velocity_at(d, now)
-    Vcx, Vcy = effective_velocity_at(a, now)
+    Vax, Vay = o.velocity_at(now)
+    Vbx, Vby = d.velocity_at(now)
+    Vcx, Vcy = a.velocity_at(now)
 
     dP10x, dP10y = (Bx - Ax), (By - Ay)
     dP20x, dP20y = (Cx - Ax), (Cy - Ay)
@@ -210,21 +183,33 @@ def area_collapse_time_first(o: KineticVertex, d: KineticVertex, a: KineticVerte
     return now + tau
 
 
-def collapse_time_edge(v1: KineticVertex, v2: KineticVertex) -> float:
-    s1 = v1.velocity
-    s2 = v2.velocity
-    o1 = v1.origin
-    o2 = v2.origin
-    dv = sub(s1, s2)
-    denominator = dot(dv, dv)
-    if not near_zero(denominator):
-        w0 = sub(o2, o1)
-        nominator = dot(dv, w0)
-        collapse_time = nominator / denominator
-        logger.debug("edge collapse time: %s", collapse_time)
-        return float(collapse_time)
-    logger.debug("%s|%s", v1, v2)
-    return -1.0
+def collapse_time_edge(v1: VertexRef, v2: VertexRef, now: float) -> Optional[float]:
+    """
+    Predict absolute time T of closest approach between v1 and v2, computed from
+    state at `now` (positions + effective velocities).
+
+    This avoids cancellation from absolute-time formulas and avoids stale velocities
+    for stopped vertices (velocity_at => (0,0) after stop).
+    """
+    P1 = v1.position_at(now)
+    P2 = v2.position_at(now)
+    
+    V1 = v1.velocity_at(now)
+    V2 = v2.velocity_at(now)
+
+    dv = sub(V1, V2)
+    denom = dot(dv, dv)
+    if near_zero(denom):
+        return None
+
+    w0 = sub(P2, P1)
+    tau = dot(dv, w0) / denom
+    if tau < -STOP_EPS:
+        return None
+
+    T = now + max(0.0, float(tau))
+    logger.debug("edge collapse time (abs): %s", T)
+    return T
 
 
 def compute_event_0triangle(tri: KineticTriangle, now: float, sieve: Sieve) -> Optional[Event]:
@@ -244,10 +229,20 @@ def compute_event_0triangle(tri: KineticTriangle, now: float, sieve: Sieve) -> O
             side = dists.index(max(dists))
             return Event(time=now, tri=tri, side=(side,), tp="flip", triangle_tp=tri.type)  # type: ignore[arg-type]
 
-    times_edge = [collapse_time_edge(o, d), collapse_time_edge(d, a), collapse_time_edge(a, o)]
-    dists = [o.distance2_at(d, times_edge[0]), d.distance2_at(a, times_edge[1]), a.distance2_at(o, times_edge[2])]
+    times_edge: list[Optional[float]] = [
+        collapse_time_edge(o, d, now),
+        collapse_time_edge(d, a, now),
+        collapse_time_edge(a, o, now),
+    ]
+
+    # If time is None (no meaningful closest-approach), treat as "no edge event"
+    pairs = [(o, d), (d, a), (a, o)]
+    dists: list[float] = []
+    for (p, q), t in zip(pairs, times_edge):
+        dists.append(math.inf if t is None else p.distance2_at(q, t))
+
     indices = [i for i, val in enumerate(map(math.sqrt, dists)) if near_zero(val)]
-    t_e = [times_edge[i] for i in indices]
+    t_e = [times_edge[i] for i in indices if times_edge[i] is not None]
     time_edge = sieve(t_e, now)
     time_area = sieve(times_area, now)
 
@@ -312,7 +307,7 @@ def compute_event_1triangle(tri: KineticTriangle, now: float, sieve: Sieve) -> O
     ow, dw, aw = (tri.vertices[ccw(wavefront_side)], tri.vertices[cw(wavefront_side)], tri.vertices[wavefront_side])  # type: ignore[misc]
     assert isinstance(ow, KineticVertex) and isinstance(dw, KineticVertex) and isinstance(aw, KineticVertex)
 
-    times_vertex_crash = [vertex_crash_time(ow, dw, aw)]
+    times_vertex_crash = [vertex_crash_time(ow, dw, aw, now)]
     for time in times_vertex_crash:
         if time is None:
             continue
@@ -329,7 +324,7 @@ def compute_event_1triangle(tri: KineticTriangle, now: float, sieve: Sieve) -> O
 
     time_vertex = sieve([t for t in times_vertex_crash if t is not None], now)
     time_area = sieve(area_collapse_times(o, d, a, now), now)
-    time_edge = sieve([collapse_time_edge(ow, dw)], now)
+    time_edge = sieve([t for t in [collapse_time_edge(ow, dw, now)] if t is not None], now)
 
     if time_edge is None and time_vertex is None:
         A2, A1, A0 = area_collapse_time_coeff_tau(*tri.vertices, now)  # type: ignore[arg-type]
@@ -395,11 +390,11 @@ def compute_event_2triangle(tri: KineticTriangle, now: float, sieve: Sieve) -> O
 
     times: list[Optional[float]] = []
     if tri.neighbours[2] is None:
-        times.append(collapse_time_edge(o, d))
+        times.append(collapse_time_edge(o, d, now))
     if tri.neighbours[0] is None:
-        times.append(collapse_time_edge(d, a))
+        times.append(collapse_time_edge(d, a, now))
     if tri.neighbours[1] is None:
-        times.append(collapse_time_edge(a, o))
+        times.append(collapse_time_edge(a, o, now))
 
     uniq = get_unique_times(times)
     time = sieve(uniq, now)
@@ -427,12 +422,20 @@ def compute_event_3triangle(tri: KineticTriangle, now: float, sieve: Sieve) -> O
     a, o, d = tri.vertices  # type: ignore[misc]
     assert isinstance(o, KineticVertex) and isinstance(d, KineticVertex) and isinstance(a, KineticVertex)
 
-    t_e = [collapse_time_edge(o, d), collapse_time_edge(d, a), collapse_time_edge(a, o)]
-    dists = [o.distance2_at(d, t_e[0]), d.distance2_at(a, t_e[1]), a.distance2_at(o, t_e[2])]
+    t_e: list[Optional[float]] = [
+        collapse_time_edge(o, d, now),
+        collapse_time_edge(d, a, now),
+        collapse_time_edge(a, o, now),
+    ]
+
+    dists: list[float] = []
+    for (p, q), t in zip([(o, d), (d, a), (a, o)], t_e):
+        dists.append(math.inf if t is None else p.distance2_at(q, t))
+
     indices = [i for i, val in enumerate(map(math.sqrt, dists)) if near_zero(val)]
     assert tri.neighbours.count(None) == 3
 
-    time_edge = sieve(t_e, now)
+    time_edge = sieve([t for t in t_e if t is not None], now)
     time_area = sieve(area_collapse_times(o, d, a, now), now)
 
     if time_edge is not None:
@@ -458,7 +461,7 @@ def compute_event_inftriangle(tri: KineticTriangle, now: float, sieve: Sieve) ->
 
     if tri.neighbours[side] is None:
         assert tri.type == 1
-        time = find_gt([collapse_time_edge(o, d)], now)
+        time = find_gt([collapse_time_edge(o, d, now)], now)
         if time is not None:
             if near_zero(o.distance2_at(d, time)):
                 return Event(time=time, tri=tri, side=(side,), tp="edge", triangle_tp=tri.type)  # type: ignore[arg-type]
@@ -516,4 +519,4 @@ def compute_new_edge_collapse_event(tri: KineticTriangle, time: float) -> Event:
     dists = list(map(math.sqrt, [d.distance2_at(a, time), a.distance2_at(o, time), o.distance2_at(d, time)]))
     zeros = [near_zero(val - min(dists)) for val in dists]
     sides = tuple(i for i, z in enumerate(zeros) if z)
-    return Event(time=time, tri=tri, side=sides, tp="edge", triangle_tp=tri.type)  # type: ignore[arg-type]
+    return Event(time=time, tri=tri, side=sides, tp="edge", triangle_tp=tri.type)

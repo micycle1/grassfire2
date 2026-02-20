@@ -80,10 +80,6 @@ class KineticVertex:
         return (self.origin[0] + time * self.velocity[0], self.origin[1] + time * self.velocity[1])
 
 
-    def visualize_at(self, time: float) -> Point:
-        return self.position_at(time)
-
-
     def distance2_at(self, other: "VertexRef", time: float) -> float:
         sx, sy = self.position_at(time)
         ox, oy = other.position_at(time)
@@ -152,9 +148,10 @@ class InfiniteVertex:
     def position_at(self, time: float) -> Point:
         assert self.origin is not None
         return self.origin
-
-    def visualize_at(self, time: float) -> Point:
-        return self.position_at(time)
+    
+    def velocity_at(self, time: float) -> Vec2:
+        # infinite vertices are always stationary
+        return (0.0, 0.0)
 
     def distance2_at(self, other: KineticVertex, time: float) -> float:
         sx, sy = self.position_at(time)

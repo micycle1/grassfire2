@@ -239,8 +239,8 @@ def handle_parallel_edge_event_3tri(
     v2 = t.vertices[cw(e)]
     assert isinstance(v1, KineticVertex) and isinstance(v2, KineticVertex)
 
-    magn_v1 = norm(v1.velocity)
-    magn_v2 = norm(v2.velocity)
+    magn_v1 = norm(v1.velocity_at(now))
+    magn_v2 = norm(v2.velocity_at(now))
 
     if magn_v2 < magn_v1:
         sk_node, newly_made = stop_kvertices([v2], step, now)
