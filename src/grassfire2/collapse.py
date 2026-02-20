@@ -8,8 +8,12 @@ from typing import Callable, Optional
 from tri.delaunay.tds import cw, ccw, Edge
 
 from .tolerances import get_unique_times, near_zero
-from .model import Event, InfiniteVertex, KineticTriangle, KineticVertex
+from .model import Event, InfiniteVertex, KineticTriangle, KineticVertex, VertexRef
 from .linalg import dot, sub
+
+Vec2 = tuple[float, float]
+
+STOP_EPS = 1e-9
 
 try:
     from predicates import orient2d_xy as _orient2d_xy  # type: ignore
@@ -42,7 +46,7 @@ def find_gte(a: list[Optional[float]], x: float) -> Optional[float]:
 
 
 def vertex_crash_time(org: KineticVertex, dst: KineticVertex, apx: KineticVertex) -> Optional[float]:
-    Mv = tuple(sub(apx.origin, org.origin))  # type: ignore[arg-type]
+    Mv = sub(apx.origin, org.origin)  # type: ignore[arg-type]
     assert org.ur is not None
     assert org.ur == dst.ul
     n = tuple(org.ur.w)  # type: ignore[attr-defined]
@@ -53,24 +57,6 @@ def vertex_crash_time(org: KineticVertex, dst: KineticVertex, apx: KineticVertex
     if not near_zero(denom):
         return dist_v_e / denom
     return None
-
-
-def solve_quadratic(A: float, B: float, C: float) -> list[float]:
-    if near_zero(A) and not near_zero(B):
-        return [-C / B]
-    if near_zero(A) and near_zero(B):
-        return []
-
-    T = -B / A
-    D = C / A
-    centre = T * 0.5
-    under = 0.25 * (T ** 2) - D
-    if near_zero(under):
-        return [centre]
-    if under < 0:
-        return []
-    plus_min = math.sqrt(under)
-    return [centre - plus_min, centre + plus_min]
 
 
 def area_collapse_time_coeff(kva: KineticVertex, kvb: KineticVertex, kvc: KineticVertex) -> tuple[float, float, float]:
@@ -109,12 +95,119 @@ def area_collapse_time_coeff(kva: KineticVertex, kvb: KineticVertex, kvc: Kineti
     )
     return (A, B, C)
 
+def cross2(ax: float, ay: float, bx: float, by: float) -> float:
+    return ax * by - ay * bx
 
-def area_collapse_times(o: KineticVertex, d: KineticVertex, a: KineticVertex) -> list[float]:
-    coeff = area_collapse_time_coeff(o, d, a)
-    sol = solve_quadratic(coeff[0], coeff[1], coeff[2])
-    sol.sort()
-    return sol
+
+def effective_velocity_at(v: VertexRef, now: float) -> Vec2:
+    """
+    Freeze stopped kinetic vertices; infinite vertices are always stationary.
+    """
+    if isinstance(v, InfiniteVertex):
+        return (0.0, 0.0)
+
+    return v.velocity_at(now)
+
+
+def area_collapse_time_coeff_tau(o: VertexRef, d: VertexRef, a: VertexRef, now: float) -> tuple[float, float, float]:
+    Ax, Ay = o.position_at(now)
+    Bx, By = d.position_at(now)
+    Cx, Cy = a.position_at(now)
+
+    Vax, Vay = effective_velocity_at(o, now)
+    Vbx, Vby = effective_velocity_at(d, now)
+    Vcx, Vcy = effective_velocity_at(a, now)
+
+    dP10x, dP10y = (Bx - Ax), (By - Ay)
+    dP20x, dP20y = (Cx - Ax), (Cy - Ay)
+    dV10x, dV10y = (Vbx - Vax), (Vby - Vay)
+    dV20x, dV20y = (Vcx - Vax), (Vcy - Vay)
+
+    A2 = dV10x * dV20y - dV10y * dV20x
+    A1 = (dP10x * dV20y - dP10y * dV20x) + (dV10x * dP20y - dV10y * dP20x)
+    A0 = dP10x * dP20y - dP10y * dP20x
+    return (float(A2), float(A1), float(A0))
+
+
+def solve_quadratic(A2: float, A1: float, A0: float) -> list[float]:
+    # (same as your existing solve_quadratic, but coefficients order matches A2,A1,A0)
+    if near_zero(A2) and not near_zero(A1):
+        return [-A0 / A1]
+    if near_zero(A2) and near_zero(A1):
+        return []
+
+    # Solve A2*t^2 + A1*t + A0 = 0 in a numerically reasonable way
+    # (Keeping your existing method style)
+    T = -A1 / A2
+    D = A0 / A2
+    centre = T * 0.5
+    under = 0.25 * (T * T) - D
+    if near_zero(under):
+        return [centre]
+    if under < 0.0:
+        return []
+    s = math.sqrt(under)
+    return [centre - s, centre + s]
+
+
+def pick_future_root_tau(A2: float, A1: float, A0: float) -> float:
+    """
+    Choose a τ >= 0 root.
+    This borrows the explicit selection idea from Surfer2 (don’t just 'min positive' blindly).
+
+    Returns +inf if no future root.
+    """
+    roots = solve_quadratic(A2, A1, A0)
+    if not roots:
+        return math.inf
+
+    # Filter to τ >= 0 (with tolerance)
+    fut = [r for r in roots if r >= -STOP_EPS]
+    if not fut:
+        return math.inf
+
+    if len(fut) == 1:
+        return max(0.0, fut[0])
+
+    r0, r1 = (min(fut), max(fut))
+
+    # Optional heuristic matching the Java excerpt:
+    # - if parabola opens upward (A2 > 0): earliest non-negative crossing
+    # - if opens downward (A2 < 0): latest non-negative crossing
+    if A2 > 0.0:
+        return max(0.0, r0)
+    if A2 < 0.0:
+        return max(0.0, r1)
+
+    # Linear-ish fallback (shouldn’t happen due to near_zero(A2) earlier)
+    return max(0.0, r0)
+
+
+
+def area_collapse_times(o: KineticVertex, d: KineticVertex, a: KineticVertex, now: float) -> list[float]:
+    """
+    Replacement for your existing area_collapse_times(o,d,a) that returns ABSOLUTE times,
+    computed stably from the current state at 'now'.
+    """
+    A2, A1, A0 = area_collapse_time_coeff_tau(o, d, a, now)
+    roots_tau = solve_quadratic(A2, A1, A0)
+    out: list[float] = []
+    for tau in roots_tau:
+        if tau >= -STOP_EPS:
+            out.append(now + max(0.0, tau))
+    out.sort()
+    return out
+
+
+def area_collapse_time_first(o: KineticVertex, d: KineticVertex, a: KineticVertex, now: float) -> float:
+    """
+    If you prefer a single chosen time instead of all times.
+    """
+    A2, A1, A0 = area_collapse_time_coeff_tau(o, d, a, now)
+    tau = pick_future_root_tau(A2, A1, A0)
+    if not math.isfinite(tau):
+        return math.inf
+    return now + tau
 
 
 def collapse_time_edge(v1: KineticVertex, v2: KineticVertex) -> float:
@@ -139,7 +232,7 @@ def compute_event_0triangle(tri: KineticTriangle, now: float, sieve: Sieve) -> O
     o, d, a = tri.vertices  # type: ignore[misc]
     assert isinstance(o, KineticVertex) and isinstance(d, KineticVertex) and isinstance(a, KineticVertex)
 
-    times_area = area_collapse_times(o, d, a)
+    times_area = area_collapse_times(o, d, a, now)
     for time in times_area:
         if near_zero(abs(time - now)):
             dists = [d.distance2_at(a, now), a.distance2_at(o, now), o.distance2_at(d, now)]
@@ -235,11 +328,14 @@ def compute_event_1triangle(tri: KineticTriangle, now: float, sieve: Sieve) -> O
             return Event(time=time, tri=tri, side=(longest,), tp=tp, triangle_tp=tri.type)  # type: ignore[arg-type]
 
     time_vertex = sieve([t for t in times_vertex_crash if t is not None], now)
-    time_area = sieve(area_collapse_times(o, d, a), now)
+    time_area = sieve(area_collapse_times(o, d, a, now), now)
     time_edge = sieve([collapse_time_edge(ow, dw)], now)
 
     if time_edge is None and time_vertex is None:
-        time = sieve(solve_quadratic(*area_collapse_time_coeff(*tri.vertices)), now)  # type: ignore[arg-type]
+        A2, A1, A0 = area_collapse_time_coeff_tau(*tri.vertices, now)  # type: ignore[arg-type]
+        taus = solve_quadratic(A2, A1, A0)
+        abs_times = [now + max(0.0, t) for t in taus if t >= -STOP_EPS]
+        time = sieve(abs_times, now)
         if time is None:
             return None
         if near_zero(time - now):
@@ -308,7 +404,7 @@ def compute_event_2triangle(tri: KineticTriangle, now: float, sieve: Sieve) -> O
     uniq = get_unique_times(times)
     time = sieve(uniq, now)
     if time is None:
-        time = sieve(area_collapse_times(o, d, a), now)
+        time =  sieve(area_collapse_times(o, d, a, now), now)
 
     if time is None:
         return None
@@ -337,7 +433,7 @@ def compute_event_3triangle(tri: KineticTriangle, now: float, sieve: Sieve) -> O
     assert tri.neighbours.count(None) == 3
 
     time_edge = sieve(t_e, now)
-    time_area = sieve(area_collapse_times(o, d, a), now)
+    time_area = sieve(area_collapse_times(o, d, a, now), now)
 
     if time_edge is not None:
         sides = tuple(indices) if indices else (0, 1, 2)
@@ -368,7 +464,7 @@ def compute_event_inftriangle(tri: KineticTriangle, now: float, sieve: Sieve) ->
                 return Event(time=time, tri=tri, side=(side,), tp="edge", triangle_tp=tri.type)  # type: ignore[arg-type]
         return None
 
-    time = sieve(area_collapse_times(o, d, a), now)  # type: ignore[arg-type]
+    time = sieve(area_collapse_times(o, d, a, now), now)  # type: ignore[arg-type]
     if time is None:
         return None
     if near_zero(o.distance2_at(d, time)):

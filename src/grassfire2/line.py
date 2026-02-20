@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from math import sqrt
+from math import sqrt, hypot
 from typing import Optional
 
 from .linalg import add, dot, mul, norm, sub, unit, rotate90ccw, rotate90cw, make_vector
@@ -57,6 +57,7 @@ def coefficients_bisector_of_lines(
     pa: float, pb: float, pc: float,
     qa: float, qb: float, qc: float
 ) -> tuple[float, float, float]:
+    # NOTE: expects general (not necessarily normalized) line coefficients.
     n1 = sqrt(pa * pa + pb * pb)
     n2 = sqrt(qa * qa + qb * qb)
     a = n2 * pa + n1 * qa
@@ -69,26 +70,86 @@ def coefficients_bisector_of_lines(
     return float(a), float(b), float(c)
 
 
+def intersect_unit_normals_at_time(l1: Line2, l2: Line2, t: float) -> Point | None:
+    a1, b1 = l1.w
+    c1 = l1.b - t
+    a2, b2 = l2.w
+    c2 = l2.b - t
+
+    denom = a1 * b2 - a2 * b1
+    if near_zero(denom):
+        return None
+    x = (b1 * c2 - b2 * c1) / denom
+    y = (a2 * c1 - a1 * c2) / denom
+    return (x, y)
+
+
 @dataclass(slots=True)
 class Line2:
+    """
+    Line represented as: w · x + b = 0, where w is a *unit* normal (wx, wy).
+
+    Invariants:
+      - w is always normalized (unit length)
+      - b is scaled accordingly
+    """
     w: Vec2
     b: float
-    normalize: bool = True
 
     def __post_init__(self) -> None:
-        self.w = (float(self.w[0]), float(self.w[1]))
-        self.b = float(self.b)
-        if self.normalize:
-            self._normalize()
+        wx = float(self.w[0])
+        wy = float(self.w[1])
+        b = float(self.b)
 
-    def _normalize(self) -> None:
-        nrm = norm(self.w)
-        self.b /= nrm
-        self.w = unit(self.w)
+        n = hypot(wx, wy)
+        # if this ever happens, your input geometry has degenerate segments/lines
+        if n == 0.0:
+            raise ValueError("degenerate line with zero normal")
+
+        inv = 1.0 / n
+        self.w = (wx * inv, wy * inv)
+        self.b = b * inv
+
+    @classmethod
+    def _from_normalized(cls, w: Vec2, b: float) -> "Line2":
+        """
+        Fast constructor when (w,b) already satisfy invariants (w is unit).
+        Avoids __post_init__ normalization cost.
+        """
+        obj = object.__new__(cls)
+        obj.w = w
+        obj.b = float(b)
+        return obj
+
+    @classmethod
+    def from_points(cls, start: Point, end: Point) -> "Line2":
+        a, b, c = coefficients_from_points(start, end)
+        return cls((a, b), c)
 
     def translated(self, v: Vec2) -> "Line2":
-        d = dot(self.w, v)
-        return Line2(self.w, self.b - d, normalize=(d != 0.0))
+        """
+        Translate line by vector v.
+
+        For unit normal w:
+          w·(x - v) + b = 0  <=>  w·x + (b - w·v) = 0
+
+        Translation does not change w, so no renormalization.
+        """
+        wx, wy = self.w
+        d = wx * v[0] + wy * v[1]
+        return Line2._from_normalized(self.w, self.b - d)
+
+    def at_time(self, now: float) -> "Line2":
+        """
+        The wavefront evolution in this code uses translating the line along +w by 'now':
+          translated(w * now)
+
+        With unit w, w·(w*now) = now, so:
+          b' = b - now
+        """
+        if now == 0.0:
+            return self  # safe: immutable-by-convention; avoids alloc
+        return Line2._from_normalized(self.w, self.b - now)
 
     def perpendicular(self, through: Point) -> "Line2":
         a, b, c = coefficients_perpendicular_through_point(self.w[0], self.w[1], through[0], through[1])
@@ -99,31 +160,24 @@ class Line2:
         return Line2((a, b), c)
 
     def signed_distance(self, pt: Point) -> float:
-        return dot(self.w, pt) + self.b
+        wx, wy = self.w
+        return wx * pt[0] + wy * pt[1] + self.b
 
     @property
     def through(self) -> Point:
-        t = mul(self.w, -self.b)
-        return (float(t[0]), float(t[1]))
-
-    @classmethod
-    def from_points(cls, start: Point, end: Point) -> "Line2":
-        coeff = coefficients_from_points(start, end)
-        ln = cls((coeff[0], coeff[1]), coeff[2], normalize=True)
-        # legacy asserts: end != start
-        return ln
-
-    def at_time(self, now: float) -> "Line2":
-        if now == 0.0:
-            return Line2(self.w, self.b, normalize=False)
-        logger.debug(" (constructing new line at t= %s)", now)
-        return self.translated(mul(self.w, now))
+        # point closest to origin: x = -b * w
+        wx, wy = self.w
+        return (-self.b * wx, -self.b * wy)
 
     def ends(self) -> tuple[Point, Point]:
-        ccw = rotate90ccw(self.w)
-        cw = rotate90cw(self.w)
-        end = add(mul(cw, 1000.0), self.through)
-        start = add(mul(ccw, 1000.0), self.through)
+        # unchanged behavior; uses a long direction vector perpendicular to normal
+        wx, wy = self.w
+        # ccw = (-wy, wx), cw = (wy, -wx)
+        ccw = (-wy, wx)
+        cw = (wy, -wx)
+        tx, ty = self.through
+        end = (tx + cw[0] * 1000.0, ty + cw[1] * 1000.0)
+        start = (tx + ccw[0] * 1000.0, ty + ccw[1] * 1000.0)
         return (start, end)
 
 
@@ -180,26 +234,71 @@ class WaveFrontIntersector:
     right: WaveFront
 
     def get_bisector(self) -> Vec2:
-        intersector = LineLineIntersector(self.left.line, self.right.line)
-        res = intersector.intersection_type()
-        if res == LineLineIntersectionResult.LINE:
-            bi = add(mul(self.left.line.w, 0.5), mul(self.right.line.w, 0.5))
-        elif res == LineLineIntersectionResult.POINT:
-            left_translated = self.left.line.translated(self.left.line.w)
-            right_translated = self.right.line.translated(self.right.line.w)
-            intersector_inner = LineLineIntersector(left_translated, right_translated)
-            inner_res = intersector_inner.intersection_type()
-            assert inner_res == LineLineIntersectionResult.POINT
-            bi = make_vector(end=intersector_inner.result, start=intersector.result)
-        elif res == LineLineIntersectionResult.NO_INTERSECTION:
-            bi = add(self.left.line.w, self.right.line.w)
-        else:
-            raise RuntimeError(f"Unknown intersection type: {res}")
-        logger.debug("magnitude of bisector: %s", norm(bi))
-        return (float(bi[0]), float(bi[1]))
+        """
+        Compute bisector direction (velocity) between the two wavefront support lines.
 
+        Optimized version:
+        - assumes Line2 is always normalized (w is unit)
+        - avoids constructing translated Line2 objects
+        - avoids extra LineLineIntersector allocations in the hot path
+        """
+        l1 = self.left.line
+        l2 = self.right.line
+        (a1, b1), c1 = l1.w, l1.b
+        (a2, b2), c2 = l2.w, l2.b
+
+        denom = a1 * b2 - a2 * b1
+
+        # Parallel or coincident
+        if near_zero(denom):
+            # Check if they are the same line (coincident).
+            # With normalized normals, equality up to tolerance can be tested by
+            # the 2x2 minors (a1*c2 - a2*c1, b1*c2 - b2*c1).
+            x1 = a1 * c2 - a2 * c1
+            x2 = b1 * c2 - b2 * c1
+            if near_zero(x1) and near_zero(x2):
+                # Same line: legacy behavior averaged normals
+                return (0.5 * (a1 + a2), 0.5 * (b1 + b2))
+
+            # Distinct parallel lines: legacy behavior summed normals
+            return (a1 + a2, b1 + b2)
+
+        # Proper intersection at t=0: solve
+        #   a1*x + b1*y + c1 = 0
+        #   a2*x + b2*y + c2 = 0
+        x0 = (b1 * c2 - b2 * c1) / denom
+        y0 = (a2 * c1 - a1 * c2) / denom
+
+        # Intersection after translating each line by +w (i.e. at "time" 1).
+        # For unit normals, at_time(1) is just c' = c - 1.
+        c1p = c1 - 1.0
+        c2p = c2 - 1.0
+        x1p = (b1 * c2p - b2 * c1p) / denom
+        y1p = (a2 * c1p - a1 * c2p) / denom
+
+        # Direction from intersection at t=0 to intersection at t=1
+        return (x1p - x0, y1p - y0)
+    
     def get_intersection_at_t(self, t: float) -> Point:
-        intersector = LineLineIntersector(self.left.line.at_time(t), self.right.line.at_time(t))
-        if intersector.intersection_type() == LineLineIntersectionResult.POINT:
-            return intersector.result  # type: ignore[return-value]
-        raise ValueError("parallel lines, can not compute point of intersection")
+        """
+        Intersection of left/right wavefront support lines at time t.
+
+        Optimized:
+        - avoids constructing temporary Line2 objects via line.at_time(t)
+        - directly uses coefficient update b' = b - t (valid for normalized Line2)
+        """
+        l1 = self.left.line
+        l2 = self.right.line
+
+        a1, b1 = l1.w
+        a2, b2 = l2.w
+        c1 = l1.b - t
+        c2 = l2.b - t
+
+        denom = a1 * b2 - a2 * b1
+        if near_zero(denom):
+            raise ValueError("parallel lines, can not compute point of intersection")
+
+        x = (b1 * c2 - b2 * c1) / denom
+        y = (a2 * c1 - a1 * c2) / denom
+        return (float(x), float(y))

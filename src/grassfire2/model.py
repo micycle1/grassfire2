@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 Point = tuple[float, float]
 Vec2 = tuple[float, float]
 
+STOP_EPS = 1e-9
 
 @dataclass(slots=True)
 class SkeletonNode:
@@ -53,20 +54,56 @@ class KineticVertex:
         return self.stop_node is not None
 
     def position_at(self, time: float) -> Point:
+        """
+        Position at absolute time.
+
+        Rules:
+        - inf_fast vertices are stationary at start_node.pos
+        - stopped vertices are frozen at stop_node.pos for t >= stops_at (epsilon),
+        BUT only if stop_node is already assigned (important during stop_kvertices()).
+        """
+        # Inf-fast: always stationary
         if self.inf_fast:
             assert self.start_node is not None
             return self.start_node.pos
+
+        # Frozen-after-stop (only if stop_node exists)
+        if (
+            self.stops_at is not None
+            and self.stop_node is not None
+            and time >= self.stops_at - STOP_EPS
+        ):
+            return self.stop_node.pos
+
+        # Otherwise regular kinematics
         assert self.origin is not None and self.velocity is not None
         return (self.origin[0] + time * self.velocity[0], self.origin[1] + time * self.velocity[1])
 
+
     def visualize_at(self, time: float) -> Point:
-        # kept for parity (same as position_at in core-only build)
         return self.position_at(time)
+
 
     def distance2_at(self, other: "VertexRef", time: float) -> float:
         sx, sy = self.position_at(time)
-        ox, oy = other.position_at(time)  # type: ignore[attr-defined]
-        return (sx - ox) ** 2 + (sy - oy) ** 2
+        ox, oy = other.position_at(time)
+        dx = sx - ox
+        dy = sy - oy
+        return dx * dx + dy * dy
+
+
+    def velocity_at(self, time: float) -> Vec2:
+        """
+        Effective velocity at time:
+        - stopped or inf_fast => (0,0)
+        - otherwise => self.velocity
+        """
+        if self.inf_fast:
+            return (0.0, 0.0)
+        if self.stops_at is not None and time >= self.stops_at - STOP_EPS:
+            return (0.0, 0.0)
+        assert self.velocity is not None
+        return self.velocity
 
     @property
     def left(self) -> Optional["VertexRef"]:
