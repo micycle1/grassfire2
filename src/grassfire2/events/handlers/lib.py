@@ -16,29 +16,6 @@ logger = logging.getLogger(__name__)
 COS_179_999999 = math.cos(math.radians(179.999999))
 
 
-def _intersect_ul_ur_at_line_time(ul: Line2, ur: Line2, t: float) -> Optional[tuple[float, float]]:
-    """
-    Intersect ul.at_time(t) and ur.at_time(t) without allocating temporary Line2s.
-
-    With normalized Line2: w·x + b = 0 and at_time(t) => w·x + (b - t) = 0
-
-    ul: a1*x + b1*y + (c1 - t) = 0
-    ur: a2*x + b2*y + (c2 - t) = 0
-    """
-    a1, b1 = ul.w
-    a2, b2 = ur.w
-    c1 = ul.b - t
-    c2 = ur.b - t
-
-    denom = a1 * b2 - a2 * b1
-    if near_zero(denom):
-        return None
-
-    x = (b1 * c2 - b2 * c1) / denom
-    y = (a2 * c1 - a1 * c2) / denom
-    return (float(x), float(y))
-
-
 def is_infinitely_fast(fan: list[KineticTriangle], now: float) -> bool:
     times = [tri.event.time if tri.event is not None else -1 for tri in fan]
     return bool(fan) and all(near_zero(t - now) for t in times)
@@ -121,8 +98,8 @@ def compute_new_kvertex(ul: Line2, ur: Line2, now: float, sk_node: SkeletonNode,
                 pos_at_t0 = sk_node.pos
         else:
             # POINT intersection at line-time t=0 and t=1
-            p0 = _intersect_ul_ur_at_line_time(ul, ur, 0.0)
-            p1 = _intersect_ul_ur_at_line_time(ul, ur, 1.0)
+            p0 = ul.intersect_at_time(ur, 0.0)
+            p1 = ul.intersect_at_time(ur, 1.0)
             if p0 is None or p1 is None:
                 bi = (0.0, 0.0)
                 pos_at_t0 = sk_node.pos

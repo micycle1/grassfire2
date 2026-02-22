@@ -15,34 +15,9 @@ Vec2 = tuple[float, float]
 
 
 def coefficients_from_points(p: Point, q: Point) -> tuple[float, float, float]:
-    (px, py) = p
-    (qx, qy) = q
-    if py == qy:
-        a = 0.0
-        if qx > px:
-            b = 1.0
-            c = -py
-        elif qx == px:
-            b = 0.0
-            c = 0.0
-        else:
-            b = -1.0
-            c = py
-    elif qx == px:
-        b = 0.0
-        if qy > py:
-            a = -1.0
-            c = px
-        elif qy == py:
-            a = 0.0
-            c = 0.0
-        else:
-            a = 1.0
-            c = -px
-    else:
-        a = py - qy
-        b = qx - px
-        c = -px * a - py * b
+    a = p[1] - q[1]
+    b = q[0] - p[0]
+    c = -p[0] * a - p[1] * b
     return a, b, c
 
 
@@ -68,20 +43,6 @@ def coefficients_bisector_of_lines(
         b = n2 * pb - n1 * qb
         c = n2 * pc - n1 * qc
     return a, b, c
-
-
-def intersect_unit_normals_at_time(l1: Line2, l2: Line2, t: float) -> Point | None:
-    a1, b1 = l1.w
-    c1 = l1.b - t
-    a2, b2 = l2.w
-    c2 = l2.b - t
-
-    denom = a1 * b2 - a2 * b1
-    if near_zero(denom):
-        return None
-    x = (b1 * c2 - b2 * c1) / denom
-    y = (a2 * c1 - a1 * c2) / denom
-    return (x, y)
 
 
 @dataclass(slots=True)
@@ -162,6 +123,15 @@ class Line2:
     def signed_distance(self, pt: Point) -> float:
         wx, wy = self.w
         return wx * pt[0] + wy * pt[1] + self.b
+
+    def intersect_at_time(self, other: "Line2", t: float) -> Optional[Point]:
+        a1, b1 = self.w
+        a2, b2 = other.w
+        c1, c2 = self.b - t, other.b - t
+        denom = a1 * b2 - a2 * b1
+        if near_zero(denom):
+            return None
+        return ((b1 * c2 - b2 * c1) / denom, (a2 * c1 - a1 * c2) / denom)
 
     @property
     def through(self) -> Point:
@@ -279,15 +249,7 @@ class WaveFrontIntersector:
         l1 = self.left.line
         l2 = self.right.line
 
-        a1, b1 = l1.w
-        a2, b2 = l2.w
-        c1 = l1.b - t
-        c2 = l2.b - t
-
-        denom = a1 * b2 - a2 * b1
-        if near_zero(denom):
+        p = l1.intersect_at_time(l2, t)
+        if p is None:
             raise ValueError("parallel lines, can not compute point of intersection")
-
-        x = (b1 * c2 - b2 * c1) / denom
-        y = (a2 * c1 - a1 * c2) / denom
-        return (x, y)
+        return p
