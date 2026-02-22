@@ -145,13 +145,21 @@ class WaveFront:
     start: Point
     end: Point
     line: Line2
+    data: object | None
 
-    def __init__(self, start: Point, end: Point, line: Optional[Line2] = None) -> None:
+    def __init__(
+        self,
+        start: Point,
+        end: Point,
+        line: Optional[Line2] = None,
+        data: object | None = None,
+    ) -> None:
         if line is None:
             line = Line2.from_points(start, end)
         self.line = line
         self.start = (float(start[0]), float(start[1]))
         self.end = (float(end[0]), float(end[1]))
+        self.data = data
 
 
 class LineLineIntersectionResult:
