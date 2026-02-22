@@ -113,7 +113,13 @@ def solve_quadratic(A2: float, A1: float, A0: float) -> list[float]:
     if under < 0.0:
         return []
     s = math.sqrt(under)
-    return [centre - s, centre + s]
+    if centre > 0:
+        r1 = centre + s
+        r2 = D / r1  # Using Vieta's formulas to avoid cancellation
+    else:
+        r1 = centre - s
+        r2 = D / r1 if r1 != 0 else 0
+    return sorted([r1, r2])
 
 
 def pick_future_root_tau(A2: float, A1: float, A0: float) -> float:
@@ -491,12 +497,6 @@ def compute_collapse_time(tri: KineticTriangle, now: float = 0.0, sieve: Sieve =
             event = compute_event_2triangle(tri, now, sieve)
         elif tp == 3:
             event = compute_event_3triangle(tri, now, sieve)
-
-        # legacy orientation warnings preserved as debug-only
-        if event is not None and all(not v.inf_fast for v in tri.vertices if isinstance(v, KineticVertex)):
-            verts = [v.position_at(((event.time - now) * 0.5) + now) for v in tri.vertices]  # type: ignore[union-attr]
-            if orient2d(verts[0], verts[1], verts[2]) < 0:
-                logger.warning("TRIANGLE possibly wrong orientation; might miss event")
 
     else:
         event = compute_event_inftriangle(tri, now, sieve)

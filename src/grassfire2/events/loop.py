@@ -7,8 +7,7 @@ from typing import Callable, Optional
 
 from ..collapse import compute_collapse_time, find_gt
 from ..model import Event, Skeleton
-from .queue import OrderedSequence
-from .ordering import compare_event_by_time
+from .queue import EventQueue
 from .handlers.edge import handle_edge_event, handle_edge_event_1side, handle_edge_event_3sides
 from .handlers.flip import handle_flip_event
 from .handlers.split import handle_split_event
@@ -27,16 +26,8 @@ class DebugState:
 
 DebugHook = Callable[[DebugState], None]
 
-
-def choose_next_event(queue: OrderedSequence[Event]) -> Event:
-    it = iter(queue)
-    evt = next(it)
-    queue.remove(evt)
-    return evt
-
-
-def init_event_list(skel: Skeleton) -> OrderedSequence[Event]:
-    q: OrderedSequence[Event] = OrderedSequence(cmp=compare_event_by_time)
+def init_event_list(skel: Skeleton) -> EventQueue[Event]:
+    q: EventQueue[Event] = EventQueue()
     for tri in skel.triangles:
         res = compute_collapse_time(tri, 0.0, find_gt)
         if res is not None:
@@ -44,7 +35,7 @@ def init_event_list(skel: Skeleton) -> OrderedSequence[Event]:
     return q
 
 
-def event_loop(queue: OrderedSequence[Event], skel: Skeleton, debug_hook: Optional[DebugHook] = None) -> float:
+def event_loop(queue: EventQueue[Event], skel: Skeleton, debug_hook: Optional[DebugHook] = None) -> float:
     NOW = 0.0
     step = 0
     immediate = deque([])
@@ -59,7 +50,7 @@ def event_loop(queue: OrderedSequence[Event], skel: Skeleton, debug_hook: Option
         if immediate:
             evt = immediate.popleft()
         else:
-            evt = choose_next_event(queue)
+            evt = queue.pop()
             NOW = evt.time
 
         if debug_hook is not None:

@@ -7,7 +7,7 @@ from typing import Optional
 from ...collapse import compute_collapse_time, compute_new_edge_collapse_event
 from ...model import Event, KineticTriangle, KineticVertex, SkeletonNode
 from ...tolerances import near_zero
-from ..queue import OrderedSequence
+from ..queue import EventQueue
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +161,7 @@ def update_circ(v_left: Optional[KineticVertex], v_right: Optional[KineticVertex
         v_right.left = (v_left, now)  # type: ignore[arg-type]
 
 
-def replace_in_queue(t: KineticTriangle, now: float, queue: OrderedSequence[Event], immediate: list[Event]) -> None:
+def replace_in_queue(t: KineticTriangle, now: float, queue: EventQueue[Event], immediate: list[Event]) -> None:
     if t.event is not None:
         queue.discard(t.event)
         if t.event in immediate:

@@ -1,46 +1,54 @@
 from __future__ import annotations
+import heapq
+from typing import Generic, TypeVar
 
-from bisect import bisect_right
-from functools import cmp_to_key
-from typing import Callable, Generic, Iterator, TypeVar
-
+# T is expected to be Event, but kept generic
 T = TypeVar("T")
 
-
-class OrderedSequence(Generic[T]):
-    """Ordered sequence where duplicates are allowed (legacy behavior)."""
-
-    def __init__(self, cmp: Callable[[T, T], int]):
-        self._cmp = cmp
-        self._key = cmp_to_key(cmp)
-        self._items: list[T] = []
-        self._keys: list[object] = []
+class EventQueue(Generic[T]):
+    """O(log N) priority queue with O(1) lazy deletion."""
+    
+    def __init__(self):
+        self._heap = []
+        self._counter = 0  # Tie-breaker for identical events
 
     def add(self, item: T) -> None:
-        key_item = self._key(item)
-        index = bisect_right(self._keys, key_item)
-        self._items.insert(index, item)
-        self._keys.insert(index, key_item)
-
-    def remove(self, item: T) -> None:
-        for idx, existing in enumerate(self._items):
-            if existing is item:
-                del self._items[idx]
-                del self._keys[idx]
-                return
-        raise ValueError("item not found in ordered sequence")
+        item.valid = True
+        # Order by: 
+        # 1. time (ascending)
+        # 2. -triangle_tp (descending)
+        # 3. uid (ascending)
+        # 4. _counter (prevents comparing the actual Event object if uids tie)
+        sort_key = (item.time, -item.triangle_tp, item.tri.uid, self._counter, item)
+        heapq.heappush(self._heap, sort_key)
+        self._counter += 1
 
     def discard(self, item: T) -> None:
-        try:
-            self.remove(item)
-        except ValueError:
-            pass
+        # O(1) removal. We don't remove it from the list, just mark it invalid.
+        # It will be skipped when it surfaces to the top of the heap.
+        item.valid = False
+        
+    def remove(self, item: T) -> None:
+        self.discard(item)
 
-    def __iter__(self) -> Iterator[T]:
-        return iter(self._items)
-
-    def __len__(self) -> int:
-        return len(self._items)
+    def pop(self) -> T:
+        """Pops the next valid event."""
+        while self._heap:
+            _, _, _, _, item = heapq.heappop(self._heap)
+            if item.valid:
+                return item
+        raise KeyError("pop from empty queue")
 
     def __bool__(self) -> bool:
-        return bool(self._items)
+        """Returns True if there is at least one valid event left."""
+        # Clean up invalid events at the top of the heap
+        while self._heap and not self._heap[0][-1].valid:
+            heapq.heappop(self._heap)
+        return bool(self._heap)
+
+    def __len__(self) -> int:
+        """
+        Slow, simple O(N) length calculation.
+        Safely counts only the valid events currently sitting in the heap.
+        """
+        return sum(1 for *_, item in self._heap if item.valid)

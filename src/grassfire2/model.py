@@ -199,6 +199,8 @@ class Event:
     side: tuple[int, ...]
     tp: Literal["edge", "flip", "split"]
     triangle_tp: int
+    
+    valid: bool = field(default=True, init=False, repr=False)
 
     def __str__(self) -> str:
         finite_txt = "finite" if self.tri.is_finite else "infinite"

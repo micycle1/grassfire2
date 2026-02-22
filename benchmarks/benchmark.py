@@ -47,8 +47,8 @@ def benchmark_large():
     profiler.print()
     
     # Optional: save to HTML
-    with open("micycle_profile.html", "w") as f:
-        f.write(profiler.output_html())
+    # with open("micycle_profile.html", "w") as f:
+    #     f.write(profiler.output_html())
 
 if __name__ == "__main__":
     benchmark_large()
