@@ -38,11 +38,11 @@ def handle_split_event(evt: Event, step: int, skel, queue, immediate) -> None:
     va.wfr = v.wfr
     skel.vertices.append(va)
 
-    update_circ(v.left, vb, now)     # type: ignore[arg-type]
-    update_circ(vb, v2, now)         # type: ignore[arg-type]
+    update_circ(v.left, vb, now)
+    update_circ(vb, v2, now)
 
-    update_circ(v1, va, now)         # type: ignore[arg-type]
-    update_circ(va, v.right, now)    # type: ignore[arg-type]
+    update_circ(v1, va, now)
+    update_circ(va, v.right, now)
 
     b = t.neighbours[(e + 1) % 3]
     assert b is not None

@@ -34,8 +34,8 @@ class KineticVertex:
     start_node: SkeletonNode | None = None
     stop_node: SkeletonNode | None = None
 
-    left_hist: list[tuple[float, Optional[float], "VertexRef"]] = field(default_factory=list)
-    right_hist: list[tuple[float, Optional[float], "VertexRef"]] = field(default_factory=list)
+    left_hist: list[tuple[float, Optional[float], VertexRef]] = field(default_factory=list)
+    right_hist: list[tuple[float, Optional[float], VertexRef]] = field(default_factory=list)
 
     # wavefront direction lines
     ul: object | None = None  # Line2
@@ -79,7 +79,7 @@ class KineticVertex:
         return (self.origin[0] + time * self.velocity[0], self.origin[1] + time * self.velocity[1])
 
 
-    def distance2_at(self, other: "VertexRef", time: float) -> float:
+    def distance2_at(self, other: VertexRef, time: float) -> float:
         sx, sy = self.position_at(time)
         ox, oy = other.position_at(time)
         dx = sx - ox
@@ -101,15 +101,15 @@ class KineticVertex:
         return self.velocity
 
     @property
-    def left(self) -> Optional["VertexRef"]:
+    def left(self) -> Optional[VertexRef]:
         return self.left_hist[-1][2] if self.left_hist else None
 
     @property
-    def right(self) -> Optional["VertexRef"]:
+    def right(self) -> Optional[VertexRef]:
         return self.right_hist[-1][2] if self.right_hist else None
 
     @left.setter
-    def left(self, v: tuple["VertexRef", float]) -> None:
+    def left(self, v: tuple[VertexRef, float]) -> None:
         ref, time = v
         if self.left_hist:
             s0, _, old = self.left_hist[-1]
@@ -117,20 +117,20 @@ class KineticVertex:
         self.left_hist.append((time, None, ref))
 
     @right.setter
-    def right(self, v: tuple["VertexRef", float]) -> None:
+    def right(self, v: tuple[VertexRef, float]) -> None:
         ref, time = v
         if self.right_hist:
             s0, _, old = self.right_hist[-1]
             self.right_hist[-1] = (s0, time, old)
         self.right_hist.append((time, None, ref))
 
-    def left_at(self, time: float) -> Optional["VertexRef"]:
+    def left_at(self, time: float) -> Optional[VertexRef]:
         for start, stop, ref in self.left_hist:
             if (start <= time and stop is not None and stop > time) or (start <= time and stop is None):
                 return ref
         return None
 
-    def right_at(self, time: float) -> Optional["VertexRef"]:
+    def right_at(self, time: float) -> Optional[VertexRef]:
         for start, stop, ref in self.right_hist:
             if (start <= time and stop is not None and stop > time) or (start <= time and stop is None):
                 return ref
@@ -164,12 +164,12 @@ VertexRef = Union[KineticVertex, InfiniteVertex]
 @dataclass(slots=True, eq=False)
 class KineticTriangle:
     vertices: list[VertexRef | None] = field(default_factory=lambda: [None, None, None])
-    neighbours: list[Optional["KineticTriangle"]] = field(default_factory=lambda: [None, None, None])
+    neighbours: list[Optional[KineticTriangle]] = field(default_factory=lambda: [None, None, None])
 
     wavefront_directions: list[Optional[int]] = field(default_factory=lambda: [None, None, None])
     wavefront_support_lines: list[Optional[object]] = field(default_factory=lambda: [None, None, None])  # WaveFront
 
-    event: Optional["Event"] = None
+    event: Optional[Event] = None
     info: int = 0
     uid: int = 0  # deterministic tie-break
     stops_at: Optional[float] = None

@@ -157,8 +157,8 @@ def handle_parallel_edge_event_shorter_leg(
     kv.wfr = v2.right.wfl if v2.right is not None else None  # type: ignore[union-attr]
     skel.vertices.append(kv)
 
-    update_circ(v1.left, kv, now)   # type: ignore[arg-type]
-    update_circ(kv, v2.right, now)  # type: ignore[arg-type]
+    update_circ(v1.left, kv, now)
+    update_circ(kv, v2.right, now)
 
     a = t.neighbours[ccw(e)]
     b = t.neighbours[cw(e)]

@@ -8,11 +8,9 @@ from ...collapse import compute_collapse_time, compute_new_edge_collapse_event
 from ...model import Event, KineticTriangle, KineticVertex, SkeletonNode
 from ...tolerances import near_zero
 from ..queue import EventQueue
+from ...line import Line2
 
 logger = logging.getLogger(__name__)
-
-# Put near top of lib.py
-from ...line import Line2  # new normalized Line2
 
 COS_179_999999 = math.cos(math.radians(179.999999))
 
@@ -156,9 +154,9 @@ def get_fan(t: KineticTriangle, v: KineticVertex, direction):
 
 def update_circ(v_left: Optional[KineticVertex], v_right: Optional[KineticVertex], now: float) -> None:
     if v_left is not None:
-        v_left.right = (v_right, now)  # type: ignore[arg-type]
+        v_left.right = (v_right, now)
     if v_right is not None:
-        v_right.left = (v_left, now)  # type: ignore[arg-type]
+        v_right.left = (v_left, now)
 
 
 def replace_in_queue(t: KineticTriangle, now: float, queue: EventQueue[Event], immediate: list[Event]) -> None:
@@ -198,6 +196,6 @@ def schedule_immediately(tri: KineticTriangle, now: float, queue, immediate) -> 
     E = compute_new_edge_collapse_event(tri, now)
     tri.event = E
     if tri.neighbours.count(None) == 3:
-        tri.event.side = (0, 1, 2)  # type: ignore[misc]
-    assert len(tri.event.side) > 0  # type: ignore[arg-type]
+        tri.event.side = (0, 1, 2)
+    assert len(tri.event.side) > 0
     immediate.append(tri.event)

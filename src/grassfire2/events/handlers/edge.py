@@ -55,8 +55,8 @@ def handle_edge_event(evt: Event, step: int, skel, queue, immediate) -> None:
 
     skel.vertices.append(kv)
 
-    update_circ(v1.left, kv, now)    # type: ignore[arg-type]
-    update_circ(kv, v2.right, now)   # type: ignore[arg-type]
+    update_circ(v1.left, kv, now)
+    update_circ(kv, v2.right, now)
 
     assert kv.left is None or kv.wfl is kv.left.wfr
     assert kv.right is None or kv.wfr is kv.right.wfl

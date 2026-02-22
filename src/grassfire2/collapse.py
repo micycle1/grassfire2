@@ -222,11 +222,11 @@ def compute_event_0triangle(tri: KineticTriangle, now: float, sieve: Sieve) -> O
             dists = [d.distance2_at(a, now), a.distance2_at(o, now), o.distance2_at(d, now)]
             indices = [i for i, val in enumerate(map(math.sqrt, dists)) if near_zero(val)]
             if len(indices) == 1:
-                return Event(time=now, tri=tri, side=(indices[0],), tp="edge", triangle_tp=tri.type)  # type: ignore[arg-type]
+                return Event(time=now, tri=tri, side=(indices[0],), tp="edge", triangle_tp=tri.type)
             if len(indices) == 3:
                 raise ValueError("0-triangle collapsing to point")
             side = dists.index(max(dists))
-            return Event(time=now, tri=tri, side=(side,), tp="flip", triangle_tp=tri.type)  # type: ignore[arg-type]
+            return Event(time=now, tri=tri, side=(side,), tp="flip", triangle_tp=tri.type)
 
     times_edge: list[Optional[float]] = [
         collapse_time_edge(o, d, now),
@@ -255,28 +255,28 @@ def compute_event_0triangle(tri: KineticTriangle, now: float, sieve: Sieve) -> O
             zeros = [near_zero(v - min(dists2)) for v in dists2]
             ct = zeros.count(True)
             if ct == 3:
-                return Event(time=time, tri=tri, side=(0, 1, 2), tp="edge", triangle_tp=tri.type)  # type: ignore[arg-type]
+                return Event(time=time, tri=tri, side=(0, 1, 2), tp="edge", triangle_tp=tri.type)
             if ct == 1:
-                return Event(time=time, tri=tri, side=(zeros.index(True),), tp="edge", triangle_tp=tri.type)  # type: ignore[arg-type]
+                return Event(time=time, tri=tri, side=(zeros.index(True),), tp="edge", triangle_tp=tri.type)
             time = time_area
             dists3 = [d.distance2_at(a, time), a.distance2_at(o, time), o.distance2_at(d, time)]
             side = dists3.index(max(dists3))
-            return Event(time=time, tri=tri, side=(side,), tp="flip", triangle_tp=tri.type)  # type: ignore[arg-type]
+            return Event(time=time, tri=tri, side=(side,), tp="flip", triangle_tp=tri.type)
 
         if time_area < time_edge:
             time = time_area
             dists3 = [d.distance2_at(a, time), a.distance2_at(o, time), o.distance2_at(d, time)]
             side = dists3.index(max(dists3))
-            return Event(time=time, tri=tri, side=(side,), tp="flip", triangle_tp=tri.type)  # type: ignore[arg-type]
+            return Event(time=time, tri=tri, side=(side,), tp="flip", triangle_tp=tri.type)
 
         time = time_edge
         dists3 = [d.distance2_at(a, time), a.distance2_at(o, time), o.distance2_at(d, time)]
         zeros = [near_zero(v) for v in dists3]
         ct = zeros.count(True)
         if ct == 3:
-            return Event(time=time, tri=tri, side=(0, 1, 2), tp="edge", triangle_tp=tri.type)  # type: ignore[arg-type]
+            return Event(time=time, tri=tri, side=(0, 1, 2), tp="edge", triangle_tp=tri.type)
         if ct == 1:
-            return Event(time=time, tri=tri, side=(zeros.index(True),), tp="edge", triangle_tp=tri.type)  # type: ignore[arg-type]
+            return Event(time=time, tri=tri, side=(zeros.index(True),), tp="edge", triangle_tp=tri.type)
         raise ValueError("can this happen?")
 
     if time_edge is not None:
@@ -285,15 +285,15 @@ def compute_event_0triangle(tri: KineticTriangle, now: float, sieve: Sieve) -> O
         zeros = [near_zero(v) for v in dists3]
         ct = zeros.count(True)
         if ct == 3:
-            return Event(time=time, tri=tri, side=(0, 1, 2), tp="edge", triangle_tp=tri.type)  # type: ignore[arg-type]
+            return Event(time=time, tri=tri, side=(0, 1, 2), tp="edge", triangle_tp=tri.type)
         if ct == 1:
-            return Event(time=time, tri=tri, side=(zeros.index(True),), tp="edge", triangle_tp=tri.type)  # type: ignore[arg-type]
+            return Event(time=time, tri=tri, side=(zeros.index(True),), tp="edge", triangle_tp=tri.type)
         raise ValueError("0 triangle with 2 or 0 side collapse while edge collapse time computed?")
 
     time = time_area
     dists3 = [d.distance2_at(a, time), a.distance2_at(o, time), o.distance2_at(d, time)]
     side = dists3.index(max(dists3))
-    return Event(time=time, tri=tri, side=(side,), tp="flip", triangle_tp=tri.type)  # type: ignore[arg-type]
+    return Event(time=time, tri=tri, side=(side,), tp="flip", triangle_tp=tri.type)
 
 
 def compute_event_1triangle(tri: KineticTriangle, now: float, sieve: Sieve) -> Optional[Event]:
@@ -315,25 +315,25 @@ def compute_event_1triangle(tri: KineticTriangle, now: float, sieve: Sieve) -> O
             dists = [d.distance2_at(a, now), a.distance2_at(o, now), o.distance2_at(d, now)]
             indices = [i for i, val in enumerate(map(math.sqrt, dists)) if near_zero(val)]
             if len(indices) == 1:
-                return Event(time=now, tri=tri, side=(indices[0],), tp="edge", triangle_tp=tri.type)  # type: ignore[arg-type]
+                return Event(time=now, tri=tri, side=(indices[0],), tp="edge", triangle_tp=tri.type)
             d2 = [math.sqrt(d.distance2_at(a, time)), math.sqrt(a.distance2_at(o, time)), math.sqrt(o.distance2_at(d, time))]
             longest = d2.index(max(d2))
             tp = "split" if longest == wavefront_side else "flip"
-            return Event(time=time, tri=tri, side=(longest,), tp=tp, triangle_tp=tri.type)  # type: ignore[arg-type]
+            return Event(time=time, tri=tri, side=(longest,), tp=tp, triangle_tp=tri.type)
 
     time_vertex = sieve([t for t in times_vertex_crash if t is not None], now)
     time_area = sieve(area_collapse_times(o, d, a, now), now)
     time_edge = sieve([t for t in [collapse_time_edge(ow, dw, now)] if t is not None], now)
 
     if time_edge is None and time_vertex is None:
-        A2, A1, A0 = area_collapse_time_coeff_tau(*tri.vertices, now)  # type: ignore[arg-type]
+        A2, A1, A0 = area_collapse_time_coeff_tau(*tri.vertices, now)
         taus = solve_quadratic(A2, A1, A0)
         abs_times = [now + max(0.0, t) for t in taus if t >= -STOP_EPS]
         time = sieve(abs_times, now)
         if time is None:
             return None
         if near_zero(time - now):
-            return Event(time=now, tri=tri, side=(wavefront_side,), tp="split", triangle_tp=tri.type)  # type: ignore[arg-type]
+            return Event(time=now, tri=tri, side=(wavefront_side,), tp="split", triangle_tp=tri.type)
 
         dists = [
             d.distance2_at(a, time) if tri.neighbours[0] is not None else -1,
@@ -341,7 +341,7 @@ def compute_event_1triangle(tri: KineticTriangle, now: float, sieve: Sieve) -> O
             o.distance2_at(d, time) if tri.neighbours[2] is not None else -1,
         ]
         side = (dists.index(max(dists)),)
-        return Event(time=time, tri=tri, side=side, tp="flip", triangle_tp=tri.type)  # type: ignore[arg-type]
+        return Event(time=time, tri=tri, side=side, tp="flip", triangle_tp=tri.type)
 
     if time_edge is None and time_vertex is not None:
         if time_area is not None and time_area < time_vertex:
@@ -352,34 +352,34 @@ def compute_event_1triangle(tri: KineticTriangle, now: float, sieve: Sieve) -> O
         d2 = [math.sqrt(d.distance2_at(a, time)), math.sqrt(a.distance2_at(o, time)), math.sqrt(o.distance2_at(d, time))]
         longest_sides = [i for i, val in enumerate(d2) if near_zero(val - max(d2))]
         if wavefront_side in longest_sides and len(longest_sides) == 1:
-            return Event(time=time_vertex, tri=tri, side=(wavefront_side,), tp="split", triangle_tp=tri.type)  # type: ignore[arg-type]
+            return Event(time=time_vertex, tri=tri, side=(wavefront_side,), tp="split", triangle_tp=tri.type)
 
         zeros = [near_zero(val) for val in d2]
         ct = zeros.count(True)
         if ct == 1:
-            return Event(time=time, tri=tri, side=(d2.index(min(d2)),), tp="edge", triangle_tp=tri.type)  # type: ignore[arg-type]
-        return Event(time=time, tri=tri, side=(d2.index(max(d2)),), tp="flip", triangle_tp=tri.type)  # type: ignore[arg-type]
+            return Event(time=time, tri=tri, side=(d2.index(min(d2)),), tp="edge", triangle_tp=tri.type)
+        return Event(time=time, tri=tri, side=(d2.index(max(d2)),), tp="flip", triangle_tp=tri.type)
 
     if time_edge is not None and time_vertex is None:
-        return Event(time=time_edge, tri=tri, side=(wavefront_side,), tp="edge", triangle_tp=tri.type)  # type: ignore[arg-type]
+        return Event(time=time_edge, tri=tri, side=(wavefront_side,), tp="edge", triangle_tp=tri.type)
 
     assert time_edge is not None and time_vertex is not None
     if time_edge <= time_vertex:
         time = time_edge
         dists_sq = [d.distance2_at(a, time), a.distance2_at(o, time), o.distance2_at(d, time)]
         side = (dists_sq.index(min(dists_sq)),)
-        return Event(time=time, tri=tri, side=side, tp="edge", triangle_tp=tri.type)  # type: ignore[arg-type]
+        return Event(time=time, tri=tri, side=side, tp="edge", triangle_tp=tri.type)
 
     time = time_vertex
     d2 = [math.sqrt(d.distance2_at(a, time)), math.sqrt(a.distance2_at(o, time)), math.sqrt(o.distance2_at(d, time))]
     zeros = [near_zero(val) for val in d2]
     if True in zeros and zeros.count(True) == 1:
-        return Event(time=time, tri=tri, side=(zeros.index(True),), tp="edge", triangle_tp=tri.type)  # type: ignore[arg-type]
+        return Event(time=time, tri=tri, side=(zeros.index(True),), tp="edge", triangle_tp=tri.type)
     if True in zeros and zeros.count(True) == 3:
-        return Event(time=time, tri=tri, side=(0, 1, 2), tp="edge", triangle_tp=tri.type)  # type: ignore[arg-type]
+        return Event(time=time, tri=tri, side=(0, 1, 2), tp="edge", triangle_tp=tri.type)
     max_side = d2.index(max(d2))
     tp = "split" if tri.neighbours[max_side] is None else "flip"
-    return Event(time=time, tri=tri, side=(max_side,), tp=tp, triangle_tp=tri.type)  # type: ignore[arg-type]
+    return Event(time=time, tri=tri, side=(max_side,), tp=tp, triangle_tp=tri.type)
 
 
 def compute_event_2triangle(tri: KineticTriangle, now: float, sieve: Sieve) -> Optional[Event]:
@@ -408,12 +408,12 @@ def compute_event_2triangle(tri: KineticTriangle, now: float, sieve: Sieve) -> O
     zeros = [near_zero(val) for val in d2]
     ct = zeros.count(True)
     if ct == 3:
-        return Event(time=time, tri=tri, side=(0, 1, 2), tp="edge", triangle_tp=tri.type)  # type: ignore[arg-type]
+        return Event(time=time, tri=tri, side=(0, 1, 2), tp="edge", triangle_tp=tri.type)
     if ct == 2:
         raise ValueError(f"This is not possible with this type of triangle [{tri.info}]")
     if ct == 1:
         side = d2.index(min(d2))
-        return Event(time=time, tri=tri, side=(side,), tp="edge", triangle_tp=tri.type)  # type: ignore[arg-type]
+        return Event(time=time, tri=tri, side=(side,), tp="edge", triangle_tp=tri.type)
     return None
 
 
@@ -441,9 +441,9 @@ def compute_event_3triangle(tri: KineticTriangle, now: float, sieve: Sieve) -> O
         sides = tuple(indices) if indices else (0, 1, 2)
         if len(sides) in (2, 0):
             sides = (0, 1, 2)
-        return Event(time=time_edge, tri=tri, side=sides, tp="edge", triangle_tp=tri.type)  # type: ignore[arg-type]
+        return Event(time=time_edge, tri=tri, side=sides, tp="edge", triangle_tp=tri.type)
     if time_area is not None:
-        return Event(time=time_area, tri=tri, side=(0, 1, 2), tp="edge", triangle_tp=tri.type)  # type: ignore[arg-type]
+        return Event(time=time_area, tri=tri, side=(0, 1, 2), tp="edge", triangle_tp=tri.type)
     return None
 
 
@@ -463,14 +463,14 @@ def compute_event_inftriangle(tri: KineticTriangle, now: float, sieve: Sieve) ->
         time = find_gt([collapse_time_edge(o, d, now)], now)
         if time is not None:
             if near_zero(o.distance2_at(d, time)):
-                return Event(time=time, tri=tri, side=(side,), tp="edge", triangle_tp=tri.type)  # type: ignore[arg-type]
+                return Event(time=time, tri=tri, side=(side,), tp="edge", triangle_tp=tri.type)
         return None
 
-    time = sieve(area_collapse_times(o, d, a, now), now)  # type: ignore[arg-type]
+    time = sieve(area_collapse_times(o, d, a, now), now)
     if time is None:
         return None
     if near_zero(o.distance2_at(d, time)):
-        return Event(time=time, tri=tri, side=(side,), tp="edge", triangle_tp=tri.type)  # type: ignore[arg-type]
+        return Event(time=time, tri=tri, side=(side,), tp="edge", triangle_tp=tri.type)
 
     # flip fallback
     dists2 = []
@@ -479,7 +479,7 @@ def compute_event_inftriangle(tri: KineticTriangle, now: float, sieve: Sieve) ->
         dists2.append(start.distance2_at(end, time))
     idx = dists2.index(min(dists2))
     min_side = (cw, ccw)[idx](side)
-    return Event(time=time, tri=tri, side=(min_side,), tp="flip", triangle_tp=tri.type)  # type: ignore[arg-type]
+    return Event(time=time, tri=tri, side=(min_side,), tp="flip", triangle_tp=tri.type)
 
 
 def compute_collapse_time(tri: KineticTriangle, now: float = 0.0, sieve: Sieve = find_gte) -> Optional[Event]:
