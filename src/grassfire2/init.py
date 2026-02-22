@@ -2,14 +2,17 @@ from __future__ import annotations
 
 import logging
 
-from tri.delaunay.iter import RegionatedTriangleIterator, StarEdgeIterator, Edge
-from .topology import ccw, cw
 from predicates import orient2d
 
-from .model import Skeleton, SkeletonNode, InfiniteVertex, KineticTriangle, KineticVertex
 from .line import WaveFront, WaveFrontIntersector
+from .mesh import InputMesh
+from .model import InfiniteVertex, KineticTriangle, KineticVertex, Skeleton, SkeletonNode
+from .topology import ccw, cw
 
 logger = logging.getLogger(__name__)
+
+Corner = tuple[int, int]
+StarGroups = list[list[list[Corner]]]
 
 
 def rotate_until_not_in_candidates(t, v, direction, candidates):
@@ -23,107 +26,137 @@ def rotate_until_not_in_candidates(t, v, direction, candidates):
     return None
 
 
-def make_support_line(edge: Edge):
-    if edge.constrained:
-        start = (edge.segment[0].x, edge.segment[0].y)
-        end = (edge.segment[1].x, edge.segment[1].y)
-        return WaveFront(start, end)
-    return None
+def _step_around_vertex(mesh: InputMesh, v_idx: int, corner: Corner, direction) -> Corner | None:
+    t_idx, side = corner
+    tri = mesh.triangles[t_idx]
+    edge_side = ccw(side) if direction is ccw else cw(side)
+    if tri.c[edge_side] is not None:
+        return None
+    n_idx = tri.n[edge_side]
+    if n_idx < 0:
+        return None
+    try:
+        n_side = mesh.triangles[n_idx].v.index(v_idx)
+    except ValueError:
+        return None
+    return (n_idx, n_side)
 
 
-def split_star(v):
-    around = [e for e in StarEdgeIterator(v)]
-    groups = []
-    group = []
-    for edge in around:
-        t, s = edge.triangle, edge.side
-        group.append(edge)
-        if Edge(t, ccw(s)).constrained:
-            groups.append(group)
-            group = []
-    if group:
-        groups.append(group)
-    if len(groups) <= 1:
-        return groups
-    edge = groups[0][0]
-    if not edge.triangle.constrained[cw(edge.side)]:
-        last = groups.pop()
-        last.extend(groups[0])
-        groups[0] = last
+def build_vertex_stars(mesh: InputMesh) -> StarGroups:
+    stars: list[list[Corner]] = [[] for _ in mesh.vertices]
+    for t_idx, tri in enumerate(mesh.triangles):
+        for side, v_idx in enumerate(tri.v):
+            stars[v_idx].append((t_idx, side))
 
-    for group in groups:
-        first, last = group[0], group[-1]
-        assert first.triangle.constrained[cw(first.side)]
-        assert last.triangle.constrained[ccw(last.side)]
-        for middle in group[1:-1]:
-            assert not middle.triangle.constrained[cw(middle.side)]
-            assert not middle.triangle.constrained[ccw(middle.side)]
-    return groups
+    grouped: StarGroups = [[] for _ in mesh.vertices]
+    for v_idx, incident in enumerate(stars):
+        unvisited = set(incident)
+        while unvisited:
+            seed = next(iter(unvisited))
+            start = seed
+            seen = {seed}
+            while True:
+                prev_corner = _step_around_vertex(mesh, v_idx, start, ccw)
+                if prev_corner is None or prev_corner == seed or prev_corner in seen:
+                    break
+                seen.add(prev_corner)
+                start = prev_corner
+
+            group: list[Corner] = []
+            walked: set[Corner] = set()
+            cur = start
+            while cur is not None and cur not in walked:
+                walked.add(cur)
+                group.append(cur)
+                unvisited.discard(cur)
+                next_corner = _step_around_vertex(mesh, v_idx, cur, cw)
+                if next_corner == start:
+                    break
+                cur = next_corner
+            if group:
+                group.reverse()
+                grouped[v_idx].append(group)
+    return grouped
 
 
-def init_skeleton(dt) -> Skeleton:
+def init_skeleton(mesh: InputMesh) -> Skeleton:
     skel = Skeleton()
-    nodes = {}
+    nodes: dict[int, SkeletonNode] = {}
+    infinite_by_idx: dict[int, InfiniteVertex] = {}
 
     sum_x = 0.0
     sum_y = 0.0
-    for v in dt.vertices:
+    for idx, v in enumerate(mesh.vertices):
         if v.is_finite:
-            nodes[v] = SkeletonNode(pos=(v.x, v.y), step=-1, info=v.info)
+            nodes[idx] = SkeletonNode(pos=(v.x, v.y), step=-1, info=v.info)
             sum_x += v.x
             sum_y += v.y
+        else:
+            infinite_by_idx[idx] = InfiniteVertex(origin=(v.x, v.y))
 
-    n = len(dt.vertices)
+    n = len(mesh.vertices)
     avg_x = sum_x / n if n else 0.0
     avg_y = sum_y / n if n else 0.0
-
     centroid = InfiniteVertex(origin=(avg_x, avg_y))
 
     ktriangles: list[KineticTriangle] = []
-    internal_triangles = set()
-    for _, depth, triangle in RegionatedTriangleIterator(dt):
-        if depth == 1:
-            internal_triangles.add(triangle)
-
-    triangle2ktriangle = {}
-    for idx, t in enumerate(dt.triangles, start=1):
+    for idx, t in enumerate(mesh.triangles, start=1):
         k = KineticTriangle()
         k.info = idx
         k.uid = idx
-        triangle2ktriangle[t] = k
+        k.internal = t.is_internal
         ktriangles.append(k)
-        k.internal = t in internal_triangles
 
-    link_around = []
-    unwanted = []
-    for t in dt.triangles:
-        k = triangle2ktriangle[t]
+    unwanted: list[KineticTriangle] = []
+    for t_idx, t in enumerate(mesh.triangles):
+        k = ktriangles[t_idx]
+
+        for i, v_idx in enumerate(t.v):
+            if not mesh.vertices[v_idx].is_finite:
+                k.vertices[i] = infinite_by_idx[v_idx]
+
         for i in range(3):
-            edge = Edge(t, i)
-            k.wavefront_support_lines[i] = make_support_line(edge)
-
-        for j, n in enumerate(t.neighbours):
-            if t.constrained[j]:
+            constraint = t.c[i]
+            if constraint is None:
                 continue
-            if n is None or n.vertices[2] is None:
+            start = mesh.vertices[t.v[ccw(i)]]
+            end = mesh.vertices[t.v[cw(i)]]
+            k.wavefront_support_lines[i] = WaveFront((start.x, start.y), (end.x, end.y), data=constraint)
+
+        for j, n_idx in enumerate(t.n):
+            if t.c[j] is not None:
+                continue
+            if n_idx == -1:
                 unwanted.append(k)
                 continue
-            k.neighbours[j] = triangle2ktriangle[n]
+            k.neighbours[j] = ktriangles[n_idx]
 
+    stars = build_vertex_stars(mesh)
     kvertices: list[KineticVertex] = []
+    link_around = []
     ct = 0
-    for v in dt.vertices:
-        assert v.is_finite, "infinite vertex found"
 
-        groups = split_star(v)
+    for v_idx, groups in enumerate(stars):
+        v = mesh.vertices[v_idx]
+        if not v.is_finite:
+            continue
+
         if len(groups) == 1:
             raise NotImplementedError("not yet dealing with PSLG in initial conversion")
 
         for group in groups:
-            first, last = group[0], group[-1]
-            tail, mid1 = Edge(last.triangle, ccw(last.side)).segment
-            mid2, head = Edge(first.triangle, cw(first.side)).segment
+            first_t_idx, first_side = group[0]
+            last_t_idx, last_side = group[-1]
+
+            last_tri = mesh.triangles[last_t_idx]
+            first_tri = mesh.triangles[first_t_idx]
+
+            tail = mesh.vertices[last_tri.v[cw(last_side)]]
+            mid1 = mesh.vertices[last_tri.v[last_side]]
+            mid2 = mesh.vertices[first_tri.v[first_side]]
+            head = mesh.vertices[first_tri.v[ccw(first_side)]]
             assert mid1 is mid2
+
             turn = orient2d((tail.x, tail.y), (mid1.x, mid1.y), (head.x, head.y))
             if turn < 0:
                 turn_type = "RIGHT - REFLEX"
@@ -132,12 +165,11 @@ def init_skeleton(dt) -> Skeleton:
             else:
                 turn_type = "STRAIGHT"
 
-            right = triangle2ktriangle[first.triangle].wavefront_support_lines[cw(first.side)]
-            left = triangle2ktriangle[last.triangle].wavefront_support_lines[ccw(last.side)]
+            right = ktriangles[first_t_idx].wavefront_support_lines[cw(first_side)]
+            left = ktriangles[last_t_idx].wavefront_support_lines[ccw(last_side)]
             assert left is not None and right is not None
 
             bi = WaveFrontIntersector(left, right).get_bisector()
-
             ur = right.line
             ul = left.line
 
@@ -147,24 +179,24 @@ def init_skeleton(dt) -> Skeleton:
             kv.info = ct
             kv.origin = (v.x, v.y)
             kv.velocity = bi
-            kv.start_node = nodes[v]
+            kv.start_node = nodes[v_idx]
             kv.starts_at = 0.0
             kv.ul = ul
             kv.ur = ur
             kv.wfl = left
             kv.wfr = right
 
-            for edge in group:
-                ktriangle = triangle2ktriangle[edge.triangle]
-                ktriangle.vertices[edge.side] = kv
+            for t_idx, side in group:
+                ktriangle = ktriangles[t_idx]
+                ktriangle.vertices[side] = kv
                 kv.internal = ktriangle.internal
 
             kvertices.append(kv)
-            link_around.append(((last.triangle, cw(last.side)), kv, (first.triangle, ccw(first.side))))
+            link_around.append(((last_t_idx, cw(last_side)), kv, (first_t_idx, ccw(first_side))))
 
     for left, kv, right in link_around:
-        cwv = triangle2ktriangle[left[0]].vertices[left[1]]
-        ccwv = triangle2ktriangle[right[0]].vertices[right[1]]
+        cwv = ktriangles[left[0]].vertices[left[1]]
+        ccwv = ktriangles[right[0]].vertices[right[1]]
         assert isinstance(cwv, KineticVertex) and isinstance(ccwv, KineticVertex)
         kv.left = (cwv, 0.0)
         kv.right = (ccwv, 0.0)
@@ -174,23 +206,16 @@ def init_skeleton(dt) -> Skeleton:
         assert kv.right is None or kv.wfr is kv.right.wfl
         assert kv.is_stopped is False
 
-    infinites = {}
-    for t in triangle2ktriangle:
-        for v in t.vertices:
-            if v is not None and not v.is_finite:
-                infv = InfiniteVertex(origin=(v[0], v[1]))
-                infinites[(v[0], v[1])] = infv
-    assert len(infinites) == 3
-
-    for (t, kt) in triangle2ktriangle.items():
-        for i, v in enumerate(t.vertices):
-            if v is not None and not v.is_finite:
-                kt.vertices[i] = infinites[(v[0], v[1])]
+    for kt in ktriangles:
+        for i, vv in enumerate(kt.vertices):
+            if isinstance(vv, InfiniteVertex):
+                kt.vertices[i] = centroid
 
     remove = []
-    for kt in ktriangles:
-        if [isinstance(v, InfiniteVertex) for v in kt.vertices].count(True) == 2:
-            remove.append(kt)
+    for t_idx, tri in enumerate(mesh.triangles):
+        count_inf = sum(1 for v_idx in tri.v if not mesh.vertices[v_idx].is_finite)
+        if count_inf == 2:
+            remove.append(ktriangles[t_idx])
 
     assert len(remove) == 3
     assert len(unwanted) == 3
@@ -203,6 +228,7 @@ def init_skeleton(dt) -> Skeleton:
 
         neighbour_cw = rotate_until_not_in_candidates(kt, v, cw, unwanted)
         neighbour_ccw = rotate_until_not_in_candidates(kt, v, ccw, unwanted)
+        assert neighbour_cw is not None and neighbour_ccw is not None
         side_cw = ccw(neighbour_cw.vertices.index(v))
         side_ccw = cw(neighbour_ccw.vertices.index(v))
         link.append((neighbour_cw, side_cw, neighbour_ccw))
@@ -215,11 +241,6 @@ def init_skeleton(dt) -> Skeleton:
         kt.vertices = [None, None, None]
         kt.neighbours = [None, None, None]
         ktriangles.remove(kt)
-
-    for kt in ktriangles:
-        for i, v in enumerate(kt.vertices):
-            if isinstance(v, InfiniteVertex):
-                kt.vertices[i] = centroid
 
     # stable sort similar to legacy (not required for correctness, but keeps reproducibility)
     ktriangles.sort(key=lambda t: (t.vertices[0].origin[1], t.vertices[0].origin[0]))
