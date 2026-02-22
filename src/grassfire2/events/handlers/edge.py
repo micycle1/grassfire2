@@ -3,8 +3,6 @@ from __future__ import annotations
 import logging
 import math
 
-from tri.delaunay.tds import Edge
-
 from ...topology import ccw, cw
 
 from ...model import Event
@@ -75,20 +73,24 @@ def handle_edge_event(evt: Event, step: int, skel, queue, immediate) -> None:
         a_tri.neighbours[a_idx] = b_tri
         fan_a = replace_kvertex(a_tri, v2, kv, now, cw, queue, immediate)
         if fan_a:
-            ed = Edge(fan_a[-1], cw(fan_a[-1].vertices.index(kv)))
-            orig, dest = ed.segment
+            t_last = fan_a[-1]
+            side_idx = cw(t_last.vertices.index(kv))
+            orig = t_last.vertices[ccw(side_idx)]
+            dest = t_last.vertices[cw(side_idx)]
             if near_zero(math.sqrt(orig.distance2_at(dest, now))):
-                schedule_immediately(fan_a[-1], now, queue, immediate)
+                schedule_immediately(t_last, now, queue, immediate)
 
     if b_tri is not None:
         b_idx = b_tri.neighbours.index(t)
         b_tri.neighbours[b_idx] = a_tri
         fan_b = replace_kvertex(b_tri, v1, kv, now, ccw, queue, immediate)
         if fan_b:
-            ed = Edge(fan_b[-1], ccw(fan_b[-1].vertices.index(kv)))
-            orig, dest = ed.segment
+            t_last = fan_b[-1]
+            side_idx = cw(t_last.vertices.index(kv))
+            orig = t_last.vertices[ccw(side_idx)]
+            dest = t_last.vertices[cw(side_idx)]
             if near_zero(math.sqrt(orig.distance2_at(dest, now))):
-                schedule_immediately(fan_b[-1], now, queue, immediate)
+                schedule_immediately(t_last, now, queue, immediate)
 
     if n_tri is not None:
         n_tri.neighbours[n_tri.neighbours.index(t)] = None

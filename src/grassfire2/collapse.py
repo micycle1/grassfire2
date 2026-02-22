@@ -4,8 +4,6 @@ import math
 from dataclasses import dataclass
 from typing import Callable, Optional
 
-from tri.delaunay.tds import Edge
-
 from .topology import ccw, cw
 
 from .linalg import dot, sub
@@ -462,7 +460,9 @@ class CollapseEventComputer:
         # flip fallback
         dists2: list[float] = []
         for func in (cw, ccw):
-            start, end = Edge(tri, func(side)).segment
+            s_idx = func(side)
+            start = tri.vertices[ccw(s_idx)]
+            end = tri.vertices[cw(s_idx)]
             dists2.append(start.distance2_at(end, time))
         idx = dists2.index(min(dists2))
         min_side = (cw, ccw)[idx](side)

@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import logging
 
-from tri.delaunay.tds import Edge
-
 from ...topology import ccw, cw
 
 from ...linalg import dist, norm
@@ -36,8 +34,10 @@ def handle_parallel_fan(
         assert first_tri is last_tri
         dists = []
         for side in range(3):
-            e = Edge(first_tri, side)
-            dists.append(dist(*map(lambda x: x.position_at(now), e.segment)))
+            v_start = first_tri.vertices[ccw(side)]
+            v_end = first_tri.vertices[cw(side)]
+            dists.append(dist(v_start.position_at(now), v_end.position_at(now)))
+            
         dists_sub_min = [near_zero(d - min(dists)) for d in dists]
         if near_zero(min(dists)) and dists_sub_min.count(True) == 1:
             side = dists_sub_min.index(True)
@@ -56,12 +56,14 @@ def handle_parallel_fan(
         right = fan[0]
 
     left_leg_idx = ccw(left.vertices.index(pivot))
-    left_leg = Edge(left, left_leg_idx)
-    left_dist = dist(*map(lambda x: x.position_at(now), left_leg.segment))
+    v_l_start = left.vertices[ccw(left_leg_idx)]
+    v_l_end = left.vertices[cw(left_leg_idx)]
+    left_dist = dist(v_l_start.position_at(now), v_l_end.position_at(now))
 
     right_leg_idx = cw(right.vertices.index(pivot))
-    right_leg = Edge(right, right_leg_idx)
-    right_dist = dist(*map(lambda x: x.position_at(now), right_leg.segment))
+    v_r_start = right.vertices[ccw(right_leg_idx)]
+    v_r_end = right.vertices[cw(right_leg_idx)]
+    right_dist = dist(v_r_start.position_at(now), v_r_end.position_at(now))
 
     dists = [left_dist, right_dist]
     dists_sub_min = [near_zero(d - min(dists)) for d in dists]
@@ -73,10 +75,17 @@ def handle_parallel_fan(
         elif len(fan) == 2:
             all_2 = True
             for t in fan:
-                left_leg_idx = ccw(t.vertices.index(pivot))
-                right_leg_idx = cw(t.vertices.index(pivot))
-                ld = dist(*map(lambda x: x.position_at(now), Edge(t, left_leg_idx).segment))
-                rd = dist(*map(lambda x: x.position_at(now), Edge(t, right_leg_idx).segment))
+                l_idx = ccw(t.vertices.index(pivot))
+                r_idx = cw(t.vertices.index(pivot))
+                
+                v_l1 = t.vertices[ccw(l_idx)]
+                v_l2 = t.vertices[cw(l_idx)]
+                ld = dist(v_l1.position_at(now), v_l2.position_at(now))
+                
+                v_r1 = t.vertices[ccw(r_idx)]
+                v_r2 = t.vertices[cw(r_idx)]
+                rd = dist(v_r1.position_at(now), v_r2.position_at(now))
+                
                 u = [near_zero(ld - min(ld, rd)), near_zero(rd - min(ld, rd))].count(True)
                 if u != 2:
                     all_2 = False
@@ -99,9 +108,9 @@ def handle_parallel_fan(
 
     shortest_idx = dists_sub_min.index(True)
     if shortest_idx == 1:
-        handle_parallel_edge_event_shorter_leg(right_leg.triangle, right_leg.side, pivot, now, step, skel, queue, immediate)
+        handle_parallel_edge_event_shorter_leg(right, right_leg_idx, pivot, now, step, skel, queue, immediate)
     else:
-        handle_parallel_edge_event_shorter_leg(left_leg.triangle, left_leg.side, pivot, now, step, skel, queue, immediate)
+        handle_parallel_edge_event_shorter_leg(left, left_leg_idx, pivot, now, step, skel, queue, immediate)
 
 
 def handle_parallel_edge_event_shorter_leg(
