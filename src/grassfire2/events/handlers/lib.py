@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import math
 from typing import Optional
-from tri.delaunay.tds import apex, orig, dest, ccw
+from ...topology import apex, ccw, dest, orig
 
 from ...collapse import compute_collapse_time, compute_new_edge_collapse_event
 from ...model import Event, KineticTriangle, KineticVertex, SkeletonNode

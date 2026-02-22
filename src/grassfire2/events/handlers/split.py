@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from tri.delaunay.tds import cw, ccw
+from ...topology import ccw, cw
 
 from ...model import Event
 from .lib import stop_kvertices, compute_new_kvertex, update_circ, replace_kvertex

@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 
 from tri.delaunay.iter import RegionatedTriangleIterator, StarEdgeIterator, Edge
-from tri.delaunay.tds import cw, ccw
+from .topology import ccw, cw
 from predicates import orient2d
 
 from .model import Skeleton, SkeletonNode, InfiniteVertex, KineticTriangle, KineticVertex

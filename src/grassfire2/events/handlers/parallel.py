@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import logging
 
-from tri.delaunay.tds import Edge, ccw, cw
+from tri.delaunay.tds import Edge
+
+from ...topology import ccw, cw
 
 from ...linalg import dist, norm
 from ...model import KineticTriangle, KineticVertex

@@ -4,7 +4,9 @@ import math
 from dataclasses import dataclass
 from typing import Callable, Optional
 
-from tri.delaunay.tds import cw, ccw, Edge
+from tri.delaunay.tds import Edge
+
+from .topology import ccw, cw
 
 from .linalg import dot, sub
 from .model import Event, InfiniteVertex, KineticTriangle, KineticVertex, VertexRef

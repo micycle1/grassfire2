@@ -3,7 +3,9 @@ from __future__ import annotations
 import logging
 import math
 
-from tri.delaunay.tds import cw, ccw, Edge
+from tri.delaunay.tds import Edge
+
+from ...topology import ccw, cw
 
 from ...model import Event
 from .lib import (
