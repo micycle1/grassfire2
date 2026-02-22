@@ -21,7 +21,7 @@ print(segments)
 ```
 
 ### Sync uv (dev)
-`uv sync --all-extras --group dev --group test`
+`uv sync --group dev --group test`
 
 ### Run Tests
 `uv run pytest tests/ -v --color=yes`

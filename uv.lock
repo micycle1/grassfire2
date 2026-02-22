@@ -344,8 +344,8 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "predicates", git = "https://github.com/micycle1/predicates/" },
-    { name = "tri", git = "https://github.com/micycle1/tri" },
+    { name = "predicates", git = "https://github.com/micycle1/predicates?rev=47d3641" },
+    { name = "tri", git = "https://github.com/micycle1/tri?rev=de7c0da" },
 ]
 
 [package.metadata.requires-dev]
@@ -804,7 +804,7 @@ wheels = [
 [[package]]
 name = "predicates"
 version = "1.0.0"
-source = { git = "https://github.com/micycle1/predicates/#47d3641d949fe127d4cc90ef3da88c850e704d0c" }
+source = { git = "https://github.com/micycle1/predicates?rev=47d3641#47d3641d949fe127d4cc90ef3da88c850e704d0c" }
 
 [[package]]
 name = "prompt-toolkit"
@@ -1071,7 +1071,7 @@ wheels = [
 [[package]]
 name = "tri"
 version = "0.3.1.dev0"
-source = { git = "https://github.com/micycle1/tri#aedcdb1c4fe5f6d41581ec0fc480904617c3ef81" }
+source = { git = "https://github.com/micycle1/tri?rev=de7c0da#de7c0dafbb04c0bb7e84cf914b265289e074a509" }
 dependencies = [
     { name = "geompreds" },
 ]
