@@ -27,4 +27,4 @@ print(segments)
 `uv run pytest tests/ -v --color=yes`
 
 ### Run Benchmark
-`uv run python benchmarks/benchmark_micycle.py`
+`uv run python -O benchmarks/benchmark.py`

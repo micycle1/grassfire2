@@ -3,7 +3,8 @@ from __future__ import annotations
 import logging
 
 from tri.delaunay.iter import RegionatedTriangleIterator, StarEdgeIterator, Edge
-from tri.delaunay.tds import cw, ccw, orient2d
+from tri.delaunay.tds import cw, ccw
+from predicates import orient2d
 
 from .model import Skeleton, SkeletonNode, InfiniteVertex, KineticTriangle, KineticVertex
 from .line import WaveFront, WaveFrontIntersector
@@ -64,13 +65,17 @@ def init_skeleton(dt) -> Skeleton:
     skel = Skeleton()
     nodes = {}
 
-    avg_x = 0.0
-    avg_y = 0.0
+    sum_x = 0.0
+    sum_y = 0.0
     for v in dt.vertices:
         if v.is_finite:
             nodes[v] = SkeletonNode(pos=(v.x, v.y), step=-1, info=v.info)
-            avg_x += v.x / len(dt.vertices)
-            avg_y += v.y / len(dt.vertices)
+            sum_x += v.x
+            sum_y += v.y
+
+    n = len(dt.vertices)
+    avg_x = sum_x / n if n else 0.0
+    avg_y = sum_y / n if n else 0.0
 
     centroid = InfiniteVertex(origin=(avg_x, avg_y))
 

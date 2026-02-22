@@ -20,7 +20,7 @@ def read_csv_polygon(path):
                 rings.append(points)
     return rings
 
-def benchmark_micycle():
+def benchmark_large():
     base_path = Path(__file__).parent.parent
     csv_path = base_path / "tests" / "integration" / "csv" / "micycle-1.csv"
     
@@ -47,8 +47,8 @@ def benchmark_micycle():
     profiler.print()
     
     # Optional: save to HTML
-    # with open("micycle_profile.html", "w") as f:
-    #     f.write(profiler.output_html())
+    with open("micycle_profile.html", "w") as f:
+        f.write(profiler.output_html())
 
 if __name__ == "__main__":
-    benchmark_micycle()
+    benchmark_large()

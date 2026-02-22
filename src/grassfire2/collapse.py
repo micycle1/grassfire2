@@ -5,6 +5,7 @@ import logging
 import math
 from typing import Callable, Optional
 
+from predicates import orient2d
 from tri.delaunay.tds import cw, ccw, Edge
 
 from .tolerances import get_unique_times, near_zero
@@ -15,17 +16,9 @@ Vec2 = tuple[float, float]
 
 STOP_EPS = 1e-9
 
-try:
-    from predicates import orient2d_xy as _orient2d_xy  # type: ignore
-    def orient2d(p0, p1, p2) -> float:
-        return float(_orient2d_xy(p0[0], p0[1], p1[0], p1[1], p2[0], p2[1]))
-except Exception:  # pragma: no cover
-    from tri.delaunay.tds import orient2d as orient2d  # type: ignore
-
 logger = logging.getLogger(__name__)
 
 Sieve = Callable[[list[float], float], Optional[float]]
-
 
 def find_gt(a: list[Optional[float]], x: float) -> Optional[float]:
     a2 = [v for v in a if v is not None]

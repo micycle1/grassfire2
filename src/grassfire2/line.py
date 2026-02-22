@@ -43,14 +43,14 @@ def coefficients_from_points(p: Point, q: Point) -> tuple[float, float, float]:
         a = py - qy
         b = qx - px
         c = -px * a - py * b
-    return float(a), float(b), float(c)
+    return a, b, c
 
 
 def coefficients_perpendicular_through_point(la: float, lb: float, px: float, py: float) -> tuple[float, float, float]:
     a = -lb
     b = la
     c = lb * px - la * py
-    return float(a), float(b), float(c)
+    return a, b, c
 
 
 def coefficients_bisector_of_lines(
@@ -67,7 +67,7 @@ def coefficients_bisector_of_lines(
         a = n2 * pa - n1 * qa
         b = n2 * pb - n1 * qb
         c = n2 * pc - n1 * qc
-    return float(a), float(b), float(c)
+    return a, b, c
 
 
 def intersect_unit_normals_at_time(l1: Line2, l2: Line2, t: float) -> Point | None:
@@ -168,17 +168,6 @@ class Line2:
         # point closest to origin: x = -b * w
         wx, wy = self.w
         return (-self.b * wx, -self.b * wy)
-
-    def ends(self) -> tuple[Point, Point]:
-        # unchanged behavior; uses a long direction vector perpendicular to normal
-        wx, wy = self.w
-        # ccw = (-wy, wx), cw = (wy, -wx)
-        ccw = (-wy, wx)
-        cw = (wy, -wx)
-        tx, ty = self.through
-        end = (tx + cw[0] * 1000.0, ty + cw[1] * 1000.0)
-        start = (tx + ccw[0] * 1000.0, ty + ccw[1] * 1000.0)
-        return (start, end)
 
 
 @dataclass(slots=True)
@@ -301,4 +290,4 @@ class WaveFrontIntersector:
 
         x = (b1 * c2 - b2 * c1) / denom
         y = (a2 * c1 - a1 * c2) / denom
-        return (float(x), float(y))
+        return (x, y)

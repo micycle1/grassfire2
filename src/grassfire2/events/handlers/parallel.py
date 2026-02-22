@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import logging
 
-from tri.delaunay.tds import ccw, cw, Edge
-from tri.delaunay.tds import apex, orig, dest
+from tri.delaunay.tds import Edge, apex, ccw, cw, dest, orig
 
-from ...tolerances import near_zero
 from ...linalg import dist, norm
 from ...model import KineticTriangle, KineticVertex
-from .lib import stop_kvertices, update_circ, compute_new_kvertex, replace_kvertex, schedule_immediately
+from ...tolerances import near_zero
+from .lib import (compute_new_kvertex, replace_kvertex, schedule_immediately,
+                  stop_kvertices, update_circ)
 
 logger = logging.getLogger(__name__)
 

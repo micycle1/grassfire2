@@ -3,13 +3,6 @@ from ..model import Event
 
 
 def compare_event_by_time(one: Event, other: Event) -> int:
-    # Legacy:
-    # 1) time asc
-    # 2) triangle type desc
-    # 3) id(triangle) as final tie-break
-    #
-    # New deterministic tie-break:
-    # 3) triangle.uid (stable)
     if one.time < other.time:
         return -1
     if one.time > other.time:

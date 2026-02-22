@@ -5,7 +5,6 @@ from dataclasses import dataclass, field
 from typing import Literal, Optional, Union
 
 from .transform import Transform
-from .linalg import dist
 
 logger = logging.getLogger(__name__)
 

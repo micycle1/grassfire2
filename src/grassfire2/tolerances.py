@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import Iterable, List, Optional
-import math
 
 
 def is_close(
@@ -18,12 +17,12 @@ def is_close(
     if a == b:
         return True
     diff = abs(b - a)
+    if method == "weak":
+        return (((diff <= abs(rel_tol * b)) or (diff <= abs(rel_tol * a))) or (diff <= abs_tol))
     if method == "asymmetric":
         return (diff <= abs(rel_tol * b)) or (diff <= abs_tol)
     if method == "strong":
         return (((diff <= abs(rel_tol * b)) and (diff <= abs(rel_tol * a))) or (diff <= abs_tol))
-    if method == "weak":
-        return (((diff <= abs(rel_tol * b)) or (diff <= abs(rel_tol * a))) or (diff <= abs_tol))
     # average
     return (diff <= abs(rel_tol * (a + b) * 0.5)) or (diff <= abs_tol)
 

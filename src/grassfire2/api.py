@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional, Callable
+from typing import Optional
 
-from tri.delaunay.insert_kd import triangulate
 from tri.delaunay.helpers import ToPointsAndSegments
+from tri.delaunay.insert_kd import triangulate
 
-from .transform import get_box, get_transform
+from .events.loop import DebugHook, event_loop, init_event_list
 from .init import init_skeleton, internal_only_skeleton
-from .events.loop import init_event_list, event_loop, DebugHook
 from .model import Skeleton
+from .transform import get_box, get_transform
 
 logger = logging.getLogger(__name__)
 

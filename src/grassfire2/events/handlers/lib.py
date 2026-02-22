@@ -4,15 +4,10 @@ import logging
 import math
 from typing import Optional
 
-from ..queue import OrderedSequence
-from ...tolerances import near_zero
 from ...collapse import compute_collapse_time, compute_new_edge_collapse_event
-from ...model import KineticTriangle, KineticVertex, SkeletonNode, Event
-from ...linalg import add, mul
-from ...linalg import add as vadd
-from ...linalg import dot as vdot
-
-from ...line import LineLineIntersector, LineLineIntersectionResult, make_vector  # type: ignore[attr-defined]
+from ...model import Event, KineticTriangle, KineticVertex, SkeletonNode
+from ...tolerances import near_zero
+from ..queue import OrderedSequence
 
 logger = logging.getLogger(__name__)
 
