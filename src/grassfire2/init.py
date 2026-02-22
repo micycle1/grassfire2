@@ -222,7 +222,7 @@ def init_skeleton(dt) -> Skeleton:
                 kt.vertices[i] = centroid
 
     # stable sort similar to legacy (not required for correctness, but keeps reproducibility)
-    ktriangles.sort(key=lambda t: (t.vertices[0].origin[1], t.vertices[0].origin[0]))  # type: ignore[union-attr]
+    ktriangles.sort(key=lambda t: (t.vertices[0].origin[1], t.vertices[0].origin[0]))
 
     skel.sk_nodes = list(nodes.values())
     skel.triangles = ktriangles

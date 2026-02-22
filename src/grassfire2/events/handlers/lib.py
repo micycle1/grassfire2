@@ -26,7 +26,7 @@ def stop_kvertices(V: list[KineticVertex], step: int, now: float, pos: Optional[
 
     for v in V:
         stopped = v.stops_at is not None
-        time_close = near_zero(v.starts_at - now)  # type: ignore[operator]
+        time_close = near_zero(v.starts_at - now)
         if stopped:
             sk_node = v.stop_node
         elif time_close:
@@ -200,7 +200,7 @@ def flip(t0: KineticTriangle, side0: int, t1: KineticTriangle, side1: int) -> No
 
     for neighbour, side, t in zip([AB, BC, CD, DA], apex_around, [t0, t0, t1, t1]):
         if neighbour is not None:
-            neighbour.neighbours[side] = t  # type: ignore[index]
+            neighbour.neighbours[side] = t
 
     t0.vertices = [A, B, C]
     t0.neighbours = [BC, t1, AB]

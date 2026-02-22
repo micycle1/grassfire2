@@ -129,8 +129,8 @@ def handle_parallel_edge_event_shorter_leg(
     t.stops_at = now
 
     kv = compute_new_kvertex(v1.ul, v2.ur, now, sk_node, len(skel.vertices) + 1, v1.internal or v2.internal)
-    kv.wfl = v1.left.wfr if v1.left is not None else None  # type: ignore[union-attr]
-    kv.wfr = v2.right.wfl if v2.right is not None else None  # type: ignore[union-attr]
+    kv.wfl = v1.left.wfr if v1.left is not None else None
+    kv.wfr = v2.right.wfl if v2.right is not None else None
     skel.vertices.append(kv)
 
     update_circ(v1.left, kv, now)
