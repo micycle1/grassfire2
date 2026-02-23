@@ -56,6 +56,11 @@ def compute_skeleton(
             points.extend(poly.exterior.coords[:-1])
             for interior in poly.interiors:
                 points.extend(interior.coords[:-1])
+        if not points:
+            raise ValueError(
+                "Cannot apply shrink transform: geometry has no coordinates "
+                "(got empty geometry while shrink=True)."
+            )
         box = get_box(points)
         transform = get_transform(box)
         geom = geom_transform(
@@ -70,10 +75,12 @@ def compute_skeleton(
 
     if adapter == "shapely":
         mesh = from_shapely_constrained_delaunay(geom)
-    else:
+    elif adapter == "tri":
         points, infos, segments = points_segments_infos_from_geometry(geom)
         dt = triangulate_with_tri(points, infos, segments)
         mesh = from_tri_delaunay(dt)
+    else:
+        raise ValueError(f"Unknown adapter: {adapter!r}")
 
     return _run_skeleton(
         mesh,
