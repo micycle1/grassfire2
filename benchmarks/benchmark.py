@@ -2,7 +2,6 @@ import csv
 from pathlib import Path
 from pyinstrument import Profiler
 from grassfire2 import compute_skeleton
-from tri.delaunay.helpers import ToPointsAndSegments
 
 def read_csv_polygon(path):
     rings = []
@@ -37,9 +36,7 @@ def benchmark_large():
     N = 10
     print(f"Starting computation ({N} iterations)...")
     for _ in range(N):
-        conv = ToPointsAndSegments()
-        conv.add_polygon(rings)
-        sk = compute_skeleton(conv)
+        sk = compute_skeleton(rings, adapter="shapely")
     print("Computation finished.")
     
     profiler.stop()
