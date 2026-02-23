@@ -70,10 +70,12 @@ def compute_skeleton(
 
     if adapter == "shapely":
         mesh = from_shapely_constrained_delaunay(geom)
-    else:
+    elif adapter == "tri":
         points, infos, segments = points_segments_infos_from_geometry(geom)
         dt = triangulate_with_tri(points, infos, segments)
         mesh = from_tri_delaunay(dt)
+    else:
+        raise ValueError(f"Unknown adapter: {adapter!r}")
 
     return _run_skeleton(
         mesh,
