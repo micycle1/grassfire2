@@ -1,26 +1,20 @@
-from pytest import mark, importorskip
-from tri.delaunay.helpers import ToPointsAndSegments
+from pytest import mark
 from grassfire2 import compute_skeleton
 import csv
 from pathlib import Path
 
 def test_internal_segments_count():
-    importorskip("tri")
+    rings = [[
+        [0.0, 0.0],
+        [20.0, 0.0],
+        [20.0, 10.0],
+        [10.0, 10.0],
+        [10.0, 20.0],
+        [0.0, 20.0],
+        [0.0, 0.0],
+    ]]
 
-    conv = ToPointsAndSegments()
-    conv.add_polygon(
-        [[
-            [0.0, 0.0],
-            [20.0, 0.0],
-            [20.0, 10.0],
-            [10.0, 10.0],
-            [10.0, 20.0],
-            [0.0, 20.0],
-            [0.0, 0.0],
-        ]]
-    )
-
-    sk = compute_skeleton(conv, internal_only=True)
+    sk = compute_skeleton(rings, internal_only=True)
     segments = sk.segments()
     assert len(segments) == 8
 
@@ -103,22 +97,18 @@ EXPECTED_SEGMENTS = {
 
 @mark.parametrize("csv_file", csv_files, ids=[f.name for f in csv_files])
 def test_skeleton_integrity(csv_file):
-    importorskip("tri")
     print(f"Testing {csv_file.name}")
     rings = read_csv_polygon(csv_file)
     if not rings:
         return
 
-    conv = ToPointsAndSegments()
     all_input_vertices = set()
     
     for ring in rings:
         for p in ring:
             all_input_vertices.add(p)
-    
-    conv.add_polygon(rings)
 
-    sk = compute_skeleton(conv, internal_only=True, shrink=False)
+    sk = compute_skeleton(rings, internal_only=True, shrink=False)
     segments = sk.segments()
 
     if csv_file.name in EXPECTED_SEGMENTS:

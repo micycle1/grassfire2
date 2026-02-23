@@ -6,17 +6,13 @@ It is a modern rearchitecture of [grassfire](https://github.com/bmmeijers/grassf
 ## Getting started
 
 ```python
-from tri.delaunay.helpers import ToPointsAndSegments
 from grassfire2 import compute_segments
 
-conv = ToPointsAndSegments()
-conv.add_polygon(
-    [[
-        [0.0, 0.0], [20.0, 0.0], [20.0, 10.0], [10.0, 10.0], [10.0, 20.0], [0.0, 20.0]
-    ]]
-)
+rings = [[
+    [0.0, 0.0], [20.0, 0.0], [20.0, 10.0], [10.0, 10.0], [10.0, 20.0], [0.0, 20.0]
+]]
 
-segments = compute_segments(conv)
+segments = compute_segments(rings)
 print(segments)
 ```
 

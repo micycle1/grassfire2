@@ -141,8 +141,8 @@ def init_skeleton(mesh: InputMesh) -> Skeleton:
         if not v.is_finite:
             continue
 
-        if len(groups) == 1:
-            raise NotImplementedError("not yet dealing with PSLG in initial conversion")
+        if not groups:
+            continue
 
         for group in groups:
             first_t_idx, first_side = group[0]
@@ -217,30 +217,31 @@ def init_skeleton(mesh: InputMesh) -> Skeleton:
         if count_inf == 2:
             remove.append(ktriangles[t_idx])
 
-    assert len(remove) == 3
-    assert len(unwanted) == 3
-    assert remove == unwanted
+    if remove or unwanted:
+        assert len(remove) == 3
+        assert len(unwanted) == 3
+        assert remove == unwanted
 
-    link = []
-    for kt in unwanted:
-        v = kt.vertices[kt.neighbours.index(None)]
-        assert isinstance(v, KineticVertex)
+        link = []
+        for kt in unwanted:
+            v = kt.vertices[kt.neighbours.index(None)]
+            assert isinstance(v, KineticVertex)
 
-        neighbour_cw = rotate_until_not_in_candidates(kt, v, cw, unwanted)
-        neighbour_ccw = rotate_until_not_in_candidates(kt, v, ccw, unwanted)
-        assert neighbour_cw is not None and neighbour_ccw is not None
-        side_cw = ccw(neighbour_cw.vertices.index(v))
-        side_ccw = cw(neighbour_ccw.vertices.index(v))
-        link.append((neighbour_cw, side_cw, neighbour_ccw))
-        link.append((neighbour_ccw, side_ccw, neighbour_cw))
+            neighbour_cw = rotate_until_not_in_candidates(kt, v, cw, unwanted)
+            neighbour_ccw = rotate_until_not_in_candidates(kt, v, ccw, unwanted)
+            assert neighbour_cw is not None and neighbour_ccw is not None
+            side_cw = ccw(neighbour_cw.vertices.index(v))
+            side_ccw = cw(neighbour_ccw.vertices.index(v))
+            link.append((neighbour_cw, side_cw, neighbour_ccw))
+            link.append((neighbour_ccw, side_ccw, neighbour_cw))
 
-    for ngb, side, new_ngb in link:
-        ngb.neighbours[side] = new_ngb
+        for ngb, side, new_ngb in link:
+            ngb.neighbours[side] = new_ngb
 
-    for kt in unwanted:
-        kt.vertices = [None, None, None]
-        kt.neighbours = [None, None, None]
-        ktriangles.remove(kt)
+        for kt in unwanted:
+            kt.vertices = [None, None, None]
+            kt.neighbours = [None, None, None]
+            ktriangles.remove(kt)
 
     # stable sort similar to legacy (not required for correctness, but keeps reproducibility)
     ktriangles.sort(key=lambda t: (t.vertices[0].origin[1], t.vertices[0].origin[0]))

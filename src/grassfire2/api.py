@@ -1,41 +1,34 @@
 from __future__ import annotations
 
-import logging
-from typing import Optional, Protocol
+from typing import Literal, Optional
 
-from . import adapters
+from shapely.ops import transform as geom_transform
+
 from .events.loop import DebugHook, event_loop, init_event_list
 from .init import init_skeleton, internal_only_skeleton
 from .model import Skeleton
 from .transform import get_box, get_transform
+from .triangulation import (
+    GeometryInput,
+    RingsInput,
+    from_shapely_constrained_delaunay,
+    from_tri_delaunay,
+    normalize_to_geometry,
+    points_segments_infos_from_geometry,
+    triangulate_with_tri,
+)
 
-logger = logging.getLogger(__name__)
+AdapterName = Literal["shapely", "tri"]
 
 
-class PointsAndSegments(Protocol):
-    points: list[tuple[float, float]]
-    infos: object
-    segments: object
-
-
-def compute_skeleton(
-    conv: PointsAndSegments,
+def _run_skeleton(
+    mesh,
     *,
-    shrink: bool = True,
-    internal_only: bool = False,
-    debug_hook: Optional[DebugHook] = None,
+    transform,
+    shrink: bool,
+    internal_only: bool,
+    debug_hook: Optional[DebugHook],
 ) -> Skeleton:
-    if shrink:
-        box = get_box(conv.points)
-        transform = get_transform(box)
-        pts = list(map(transform.forward, conv.points))
-    else:
-        pts = conv.points
-        transform = None
-
-    dt = adapters.triangulate_with_tri(pts, conv.infos, conv.segments)
-    mesh = adapters.from_tri_delaunay(dt)
-
     skel = init_skeleton(mesh)
     if internal_only:
         skel = internal_only_skeleton(skel)
@@ -47,15 +40,76 @@ def compute_skeleton(
     return skel
 
 
-def compute_segments(
-    conv: PointsAndSegments,
+def compute_skeleton(
+    geom_input: GeometryInput | str | RingsInput,
     *,
     shrink: bool = True,
     internal_only: bool = False,
+    adapter: AdapterName = "shapely",
+    debug_hook: Optional[DebugHook] = None,
+) -> Skeleton:
+    geom = normalize_to_geometry(geom_input)
+
+    if shrink:
+        points = []
+        for poly in geom.geoms if geom.geom_type == "MultiPolygon" else [geom]:
+            points.extend(poly.exterior.coords[:-1])
+            for interior in poly.interiors:
+                points.extend(interior.coords[:-1])
+        box = get_box(points)
+        transform = get_transform(box)
+        geom = geom_transform(
+            lambda x, y, z=None: (
+                (x - transform.translate[0]) / transform.scale[0],
+                (y - transform.translate[1]) / transform.scale[1],
+            ),
+            geom,
+        )
+    else:
+        transform = None
+
+    if adapter == "shapely":
+        mesh = from_shapely_constrained_delaunay(geom)
+    else:
+        points, infos, segments = points_segments_infos_from_geometry(geom)
+        dt = triangulate_with_tri(points, infos, segments)
+        mesh = from_tri_delaunay(dt)
+
+    return _run_skeleton(
+        mesh,
+        transform=transform,
+        shrink=shrink,
+        internal_only=internal_only,
+        debug_hook=debug_hook,
+    )
+
+
+def compute_segments(
+    geom_input: GeometryInput | str | RingsInput,
+    *,
+    shrink: bool = True,
+    internal_only: bool = False,
+    adapter: AdapterName = "shapely",
 ):
-    return compute_skeleton(conv, shrink=shrink, internal_only=internal_only).segments()
+    return compute_skeleton(
+        geom_input,
+        shrink=shrink,
+        internal_only=internal_only,
+        adapter=adapter,
+    ).segments()
 
 
-def calc_skel(conv: PointsAndSegments, *, shrink: bool = True, internal_only: bool = False) -> Skeleton:
+def calc_skel(
+    geom_input: GeometryInput | str | RingsInput,
+    *,
+    shrink: bool = True,
+    internal_only: bool = False,
+    adapter: AdapterName = "shapely",
+) -> Skeleton:
     # backwards-ish compatibility (drops pause/output flags)
-    return compute_skeleton(conv, shrink=shrink, internal_only=internal_only)
+    return compute_skeleton(
+        geom_input,
+        shrink=shrink,
+        internal_only=internal_only,
+        adapter=adapter,
+    )

@@ -16,6 +16,7 @@ requires-python = ">=3.12"
 dependencies = [
   "predicates @ git+https://github.com/micycle1/predicates@47d3641",
   "tri @ git+https://github.com/micycle1/tri@de7c0da",
+  "shapely>=2.0",
 ]
 classifiers = [
   "Development Status :: 3 - Alpha",
