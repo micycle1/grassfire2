@@ -328,6 +328,10 @@ source = { editable = "." }
 dependencies = [
     { name = "predicates" },
     { name = "shapely" },
+]
+
+[package.optional-dependencies]
+tri = [
     { name = "tri" },
 ]
 
@@ -347,8 +351,9 @@ test = [
 requires-dist = [
     { name = "predicates", git = "https://github.com/micycle1/predicates?rev=47d3641" },
     { name = "shapely", specifier = ">=2.0" },
-    { name = "tri", git = "https://github.com/micycle1/tri?rev=de7c0da" },
+    { name = "tri", marker = "extra == 'tri'", git = "https://github.com/micycle1/tri?rev=de7c0da" },
 ]
+provides-extras = ["tri"]
 
 [package.metadata.requires-dev]
 dev = [

@@ -2,6 +2,8 @@ from pytest import mark
 from grassfire2 import compute_skeleton
 import csv
 from pathlib import Path
+from shapely.geometry import LineString
+from shapely.strtree import STRtree
 
 def test_internal_segments_count():
     rings = [[
@@ -139,9 +141,15 @@ def test_skeleton_integrity(csv_file):
     for v in all_input_vertices:
         assert find_point_in_set(v, skel_endpoints), f"Input vertex {v} not found in skeleton endpoints for {csv_file.name}."
 
-    for i in range(len(skeleton_point_segments)):
-        for j in range(i + 1, len(skeleton_point_segments)):
-            s1 = skeleton_point_segments[i]
+    # Build an R-tree so we only run exact intersection checks on local candidates.
+    segment_lines = [LineString(seg) for seg in skeleton_point_segments]
+    tree = STRtree(segment_lines)
+
+    for i, s1 in enumerate(skeleton_point_segments):
+        candidate_ids = tree.query(segment_lines[i])
+        for j in candidate_ids:
+            if j <= i:
+                continue
             s2 = skeleton_point_segments[j]
             if segments_intersect(s1[0], s1[1], s2[0], s2[1]):
-                    assert False, f"Skeleton segments intersect in {csv_file.name}: {s1} and {s2}"
+                assert False, f"Skeleton segments intersect in {csv_file.name}: {s1} and {s2}"
