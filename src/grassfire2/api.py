@@ -56,6 +56,11 @@ def compute_skeleton(
             points.extend(poly.exterior.coords[:-1])
             for interior in poly.interiors:
                 points.extend(interior.coords[:-1])
+        if not points:
+            raise ValueError(
+                "Cannot apply shrink transform: geometry has no coordinates "
+                "(got empty geometry while shrink=True)."
+            )
         box = get_box(points)
         transform = get_transform(box)
         geom = geom_transform(
