@@ -4,6 +4,12 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 
+@dataclass(frozen=True, slots=True)
+class Constraint:
+    weight: float = 1.0
+    id: int | None = None
+
+
 @dataclass(slots=True)
 class InputVertex:
     x: float
@@ -16,7 +22,7 @@ class InputVertex:
 class InputTriangle:
     v: tuple[int, int, int]
     n: tuple[int, int, int]
-    c: tuple[Optional[Any], Optional[Any], Optional[Any]]
+    c: tuple[Optional[Constraint], Optional[Constraint], Optional[Constraint]]
     is_internal: bool
 
 

@@ -121,7 +121,12 @@ def init_skeleton(mesh: InputMesh) -> Skeleton:
                 continue
             start = mesh.vertices[t.v[ccw(i)]]
             end = mesh.vertices[t.v[cw(i)]]
-            k.wavefront_support_lines[i] = WaveFront((start.x, start.y), (end.x, end.y), data=constraint)
+            k.wavefront_support_lines[i] = WaveFront(
+                (start.x, start.y),
+                (end.x, end.y),
+                data=constraint,
+                weight=constraint.weight if constraint is not None else 1.0,
+            )
 
         for j, n_idx in enumerate(t.n):
             if t.c[j] is not None:

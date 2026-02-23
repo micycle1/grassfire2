@@ -100,18 +100,6 @@ class Line2:
         d = wx * v[0] + wy * v[1]
         return Line2._from_normalized(self.w, self.b - d)
 
-    def at_time(self, now: float) -> "Line2":
-        """
-        The wavefront evolution in this code uses translating the line along +w by 'now':
-          translated(w * now)
-
-        With unit w, w·(w*now) = now, so:
-          b' = b - now
-        """
-        if now == 0.0:
-            return self  # safe: immutable-by-convention; avoids alloc
-        return Line2._from_normalized(self.w, self.b - now)
-
     def perpendicular(self, through: Point) -> "Line2":
         a, b, c = coefficients_perpendicular_through_point(self.w[0], self.w[1], through[0], through[1])
         return Line2((a, b), c)
@@ -125,9 +113,20 @@ class Line2:
         return wx * pt[0] + wy * pt[1] + self.b
 
     def intersect_at_time(self, other: "Line2", t: float) -> Optional[Point]:
+        # NOTE legacy version, assumes weight is 1 for both lines
         a1, b1 = self.w
         a2, b2 = other.w
         c1, c2 = self.b - t, other.b - t
+        denom = a1 * b2 - a2 * b1
+        if near_zero(denom):
+            return None
+        return ((b1 * c2 - b2 * c1) / denom, (a2 * c1 - a1 * c2) / denom)
+
+    def intersect_at_time_weighted(self, other: "Line2", t: float, w_self: float, w_other: float) -> Optional[Point]:
+        a1, b1 = self.w
+        a2, b2 = other.w
+        c1 = self.b - w_self * t
+        c2 = other.b - w_other * t
         denom = a1 * b2 - a2 * b1
         if near_zero(denom):
             return None
@@ -145,6 +144,7 @@ class WaveFront:
     start: Point
     end: Point
     line: Line2
+    weight: float
     data: object | None
 
     def __init__(
@@ -152,6 +152,7 @@ class WaveFront:
         start: Point,
         end: Point,
         line: Optional[Line2] = None,
+        weight: float = 1.0,
         data: object | None = None,
     ) -> None:
         if line is None:
@@ -159,6 +160,7 @@ class WaveFront:
         self.line = line
         self.start = (float(start[0]), float(start[1]))
         self.end = (float(end[0]), float(end[1]))
+        self.weight = float(weight)
         self.data = data
 
 
@@ -211,40 +213,20 @@ class WaveFrontIntersector:
         """
         l1 = self.left.line
         l2 = self.right.line
-        (a1, b1), c1 = l1.w, l1.b
-        (a2, b2), c2 = l2.w, l2.b
 
-        denom = a1 * b2 - a2 * b1
-
-        # Parallel or coincident
-        if near_zero(denom):
-            # Check if they are the same line (coincident).
-            # With normalized normals, equality up to tolerance can be tested by
-            # the 2x2 minors (a1*c2 - a2*c1, b1*c2 - b2*c1).
+        p0 = l1.intersect_at_time_weighted(l2, 0.0, self.left.weight, self.right.weight)
+        p1 = l1.intersect_at_time_weighted(l2, 1.0, self.left.weight, self.right.weight)
+        if p0 is None or p1 is None:
+            (a1, b1), c1 = l1.w, l1.b
+            (a2, b2), c2 = l2.w, l2.b
+            wl = self.left.weight
+            wr = self.right.weight
             x1 = a1 * c2 - a2 * c1
             x2 = b1 * c2 - b2 * c1
             if near_zero(x1) and near_zero(x2):
-                # Same line: legacy behavior averaged normals
-                return (0.5 * (a1 + a2), 0.5 * (b1 + b2))
-
-            # Distinct parallel lines: legacy behavior summed normals
-            return (a1 + a2, b1 + b2)
-
-        # Proper intersection at t=0: solve
-        #   a1*x + b1*y + c1 = 0
-        #   a2*x + b2*y + c2 = 0
-        x0 = (b1 * c2 - b2 * c1) / denom
-        y0 = (a2 * c1 - a1 * c2) / denom
-
-        # Intersection after translating each line by +w (i.e. at "time" 1).
-        # For unit normals, at_time(1) is just c' = c - 1.
-        c1p = c1 - 1.0
-        c2p = c2 - 1.0
-        x1p = (b1 * c2p - b2 * c1p) / denom
-        y1p = (a2 * c1p - a1 * c2p) / denom
-
-        # Direction from intersection at t=0 to intersection at t=1
-        return (x1p - x0, y1p - y0)
+                return (0.5 * (wl * a1 + wr * a2), 0.5 * (wl * b1 + wr * b2))
+            return (wl * a1 + wr * a2, wl * b1 + wr * b2)
+        return (p1[0] - p0[0], p1[1] - p0[1])
     
     def get_intersection_at_t(self, t: float) -> Point:
         """
@@ -257,7 +239,7 @@ class WaveFrontIntersector:
         l1 = self.left.line
         l2 = self.right.line
 
-        p = l1.intersect_at_time(l2, t)
+        p = l1.intersect_at_time_weighted(l2, t, self.left.weight, self.right.weight)
         if p is None:
             raise ValueError("parallel lines, can not compute point of intersection")
         return p

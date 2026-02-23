@@ -9,7 +9,7 @@ from ...collapse import compute_collapse_time, compute_new_edge_collapse_event
 from ...model import Event, KineticTriangle, KineticVertex, SkeletonNode
 from ...tolerances import near_zero
 from ..queue import EventQueue
-from ...line import Line2
+from ...line import WaveFront
 
 logger = logging.getLogger(__name__)
 
@@ -55,18 +55,29 @@ def stop_kvertices(V: list[KineticVertex], step: int, now: float, pos: Optional[
     return sk_node, is_new_node
 
 
-def compute_new_kvertex(ul: Line2, ur: Line2, now: float, sk_node: SkeletonNode, info: int, internal: bool) -> KineticVertex:
+def compute_new_kvertex(
+    wfl: WaveFront,
+    wfr: WaveFront,
+    now: float,
+    sk_node: SkeletonNode,
+    info: int,
+    internal: bool,
+) -> KineticVertex:
     kv = KineticVertex()
     kv.info = info
     kv.starts_at = now
     kv.start_node = sk_node
     kv.internal = internal
 
+    ul = wfl.line
+    ur = wfr.line
+
     u1x, u1y = ul.w
     u2x, u2y = ur.w
 
     # "direction" is sum of normals (your legacy check)
-    dirx, diry = (u1x + u2x), (u1y + u2y)
+    dirx = wfl.weight * u1x + wfr.weight * u2x
+    diry = wfl.weight * u1y + wfr.weight * u2y
 
     # dot(u1,u2) (unit vectors => in [-1,1])
     d = u1x * u2x + u1y * u2y
@@ -89,7 +100,7 @@ def compute_new_kvertex(ul: Line2, ur: Line2, now: float, sk_node: SkeletonNode,
             x2 = u1y * ur.b - u2y * ul.b
             if near_zero(x1) and near_zero(x2):
                 # LINE (coincident): legacy behavior => velocity along ul.w
-                bi = (u1x, u1y)
+                bi = (0.5 * (wfl.weight * u1x + wfr.weight * u2x), 0.5 * (wfl.weight * u1y + wfr.weight * u2y))
                 # choose origin so that kv.position_at(now) == sk_node.pos
                 pos_at_t0 = (sk_node.pos[0] - bi[0] * now, sk_node.pos[1] - bi[1] * now)
             else:
@@ -98,8 +109,8 @@ def compute_new_kvertex(ul: Line2, ur: Line2, now: float, sk_node: SkeletonNode,
                 pos_at_t0 = sk_node.pos
         else:
             # POINT intersection at line-time t=0 and t=1
-            p0 = ul.intersect_at_time(ur, 0.0)
-            p1 = ul.intersect_at_time(ur, 1.0)
+            p0 = ul.intersect_at_time_weighted(ur, 0.0, wfl.weight, wfr.weight)
+            p1 = ul.intersect_at_time_weighted(ur, 1.0, wfl.weight, wfr.weight)
             if p0 is None or p1 is None:
                 bi = (0.0, 0.0)
                 pos_at_t0 = sk_node.pos
@@ -116,6 +127,8 @@ def compute_new_kvertex(ul: Line2, ur: Line2, now: float, sk_node: SkeletonNode,
 
     kv.ul = ul
     kv.ur = ur
+    kv.wfl = wfl
+    kv.wfr = wfr
     return kv
 
 

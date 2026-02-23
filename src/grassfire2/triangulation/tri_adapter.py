@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ..mesh import InputMesh, InputTriangle, InputVertex
+from ..mesh import Constraint, InputMesh, InputTriangle, InputVertex
 
 
 def triangulate_with_tri(points, infos, segments):
@@ -75,7 +75,7 @@ def from_tri_delaunay(dt) -> InputMesh:
 
         tc = []
         for constrained in t.constrained:
-            tc.append(constrained if constrained else None)
+            tc.append(Constraint(weight=1.0) if constrained else None)
 
         triangles.append(
             InputTriangle(

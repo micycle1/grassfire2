@@ -27,15 +27,13 @@ def handle_split_event(evt: Event, step: int, skel, queue, immediate) -> None:
         skel.sk_nodes.append(sk_node)
 
     assert v1.ur is v2.ul
+    assert v.wfl is not None and v2.wfl is not None
+    assert v1.wfr is not None and v.wfr is not None
 
-    vb = compute_new_kvertex(v.ul, v2.ul, now, sk_node, len(skel.vertices) + 1, v.internal or v2.internal)
-    vb.wfl = v.wfl
-    vb.wfr = v2.wfl
+    vb = compute_new_kvertex(v.wfl, v2.wfl, now, sk_node, len(skel.vertices) + 1, v.internal or v2.internal)
     skel.vertices.append(vb)
 
-    va = compute_new_kvertex(v1.ur, v.ur, now, sk_node, len(skel.vertices) + 1, v.internal or v1.internal)
-    va.wfl = v1.wfr
-    va.wfr = v.wfr
+    va = compute_new_kvertex(v1.wfr, v.wfr, now, sk_node, len(skel.vertices) + 1, v.internal or v1.internal)
     skel.vertices.append(va)
 
     update_circ(v.left, vb, now)

@@ -49,9 +49,7 @@ def handle_edge_event(evt: Event, step: int, skel, queue, immediate) -> None:
     if newly_made:
         skel.sk_nodes.append(sk_node)
 
-    kv = compute_new_kvertex(v1.ul, v2.ur, now, sk_node, len(skel.vertices) + 1, v1.internal or v2.internal)
-    kv.wfl = v1.wfl
-    kv.wfr = v2.wfr
+    kv = compute_new_kvertex(v1.wfl, v2.wfr, now, sk_node, len(skel.vertices) + 1, v1.internal or v2.internal)
 
     skel.vertices.append(kv)
 
@@ -143,7 +141,8 @@ def handle_edge_event_1side(evt: Event, step: int, skel, queue, immediate) -> No
     if newly_made:
         skel.sk_nodes.append(sk_node)
 
-    kv = compute_new_kvertex(v1.ul, v2.ur, now, sk_node, len(skel.vertices) + 1, v1.internal or v2.internal)
+    assert v1.wfl is not None and v2.wfr is not None
+    kv = compute_new_kvertex(v1.wfl, v2.wfr, now, sk_node, len(skel.vertices) + 1, v1.internal or v2.internal)
     skel.vertices.append(kv)
 
     sk_node2, newly_made2 = stop_kvertices([v0, kv], step, now)

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-import shapely
+import shapely, random
 
-from ..mesh import InputMesh, InputTriangle, InputVertex
+from ..mesh import Constraint, InputMesh, InputTriangle, InputVertex
 
 
 def triangulate_with_shapely(geom):
@@ -90,7 +90,7 @@ def from_shapely_constrained_delaunay(geom) -> InputMesh:
             a = vertices[tv[(side + 1) % 3]]
             b = vertices[tv[(side - 1) % 3]]
             if _edge_key((a.x, a.y), (b.x, b.y)) in constrained_edges:
-                tc[side] = True
+                tc[side] = Constraint(weight=1.0)
 
         triangles.append(
             InputTriangle(

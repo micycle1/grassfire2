@@ -51,7 +51,11 @@ def vertex_crash_time(
     """
     assert org.ur is not None
     assert org.ur == dst.ul
+    assert org.wfr is not None
+    assert dst.wfl is not None
+    assert org.wfr is dst.wfl
     n = org.ur.w
+    edge_speed = org.wfr.weight
 
     Por = org.position_at(now)
     Pap = apx.position_at(now)
@@ -59,7 +63,7 @@ def vertex_crash_time(
 
     dist_v_e = dot(sub(Pap, Por), n)
     s_proj = dot(s, n)
-    denom = 1.0 - s_proj
+    denom = edge_speed - s_proj
     if near_zero(denom):
         return None
 
