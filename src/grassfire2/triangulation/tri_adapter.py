@@ -1,18 +1,16 @@
 from __future__ import annotations
 
-from tri.delaunay.helpers import ToPointsAndSegments
-from tri.delaunay.insert_kd import triangulate
-from tri.delaunay.iter import RegionatedTriangleIterator
-
 from ..mesh import InputMesh, InputTriangle, InputVertex
 
 
 def triangulate_with_tri(points, infos, segments):
+    from tri.delaunay.insert_kd import triangulate
     return triangulate(points, infos, segments, False)
 
 
 def points_segments_infos_from_geometry(geom):
     import shapely
+    from tri.delaunay.helpers import ToPointsAndSegments
 
     conv = ToPointsAndSegments()
     for poly in shapely.get_parts(geom):
@@ -31,6 +29,8 @@ def _vertex_xy(v) -> tuple[float, float]:
 
 
 def from_tri_delaunay(dt) -> InputMesh:
+    from tri.delaunay.iter import RegionatedTriangleIterator
+
     ordered_vertices = list(dt.vertices)
     seen = set(ordered_vertices)
     for t in dt.triangles:
